@@ -57,19 +57,18 @@ class _CreditPageState extends State<CreditPage> {
   String capitalizeWords(String text) {
     return text
         .split(" ")
-        .map((word) => word.isNotEmpty
-            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
-            : "")
+        .map(
+          (word) => word.isNotEmpty
+              ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+              : "",
+        )
         .join(" ");
   }
 
   // ====== CRUD ======
   void addCourse(String name, int credits) {
     setState(() {
-      courses.add({
-        'name': name,
-        'credits': credits,
-      });
+      courses.add({'name': name, 'credits': credits});
     });
 
     saveCourses();
@@ -97,8 +96,7 @@ class _CreditPageState extends State<CreditPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                decoration:
-                    const InputDecoration(labelText: "Course Name"),
+                decoration: const InputDecoration(labelText: "Course Name"),
                 onChanged: (value) => name = value,
               ),
               TextField(
@@ -120,7 +118,7 @@ class _CreditPageState extends State<CreditPage> {
                 Navigator.pop(context);
               },
               child: const Text("Add"),
-            )
+            ),
           ],
         );
       },
@@ -131,27 +129,31 @@ class _CreditPageState extends State<CreditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-      floatingActionButton: FloatingActionButton(
-        onPressed: showAddCourseDialog,
-        child: const Icon(Icons.add),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 85),
+        child: FloatingActionButton(
+          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+          foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+          onPressed: showAddCourseDialog,
+          child: const Icon(Icons.add),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Hello ${widget.studentID}",
-              style: const TextStyle(fontSize: 20),
-            ),
-            const SizedBox(height: 20),
-
+            // Text(
+            //   "Hello ${widget.studentID}",
+            //   style: const TextStyle(fontSize: 20),
+            // ),
+            // const SizedBox(height: 20),
             Text(
               "Total Credits: $totalCredits",
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
 
@@ -165,30 +167,37 @@ class _CreditPageState extends State<CreditPage> {
 
             Text(
               "$totalCredits / $graduationCredits credits",
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
 
             const SizedBox(height: 5),
 
             Text(
               "Remaining: $remainingCredits credits",
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
 
             const SizedBox(height: 20),
 
-            const Text(
+            Text(
               "Your Courses",
-              style: TextStyle(fontSize: 18),
+              style: TextStyle(
+                fontSize: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
 
             const SizedBox(height: 10),
 
             Expanded(
               child: courses.isEmpty
-                  ? const Center(
-                      child: Text("No courses added yet"),
-                    )
+                  ? const Center(child: Text("No courses added yet"))
                   : ListView.builder(
                       itemCount: courses.length,
                       itemBuilder: (context, index) {
@@ -198,11 +207,8 @@ class _CreditPageState extends State<CreditPage> {
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Card(
                             child: ListTile(
-                              title: Text(
-                                capitalizeWords(course['name']),
-                              ),
-                              subtitle:
-                                  Text('${course['credits']} credits'),
+                              title: Text(capitalizeWords(course['name'])),
+                              subtitle: Text('${course['credits']} credits'),
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete),
                                 onPressed: () {
@@ -214,7 +220,7 @@ class _CreditPageState extends State<CreditPage> {
                         );
                       },
                     ),
-            )
+            ),
           ],
         ),
       ),
