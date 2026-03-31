@@ -16,10 +16,18 @@ class _GPAPredictorState extends State<GPAPredictor> {
   ];
 
   final Map<String, double> _gradePoints = {
-    'A+': 4.3, 'A': 4.0, 'A-': 3.7,
-    'B+': 3.3, 'B': 3.0, 'B-': 2.7,
-    'C+': 2.3, 'C': 2.0, 'C-': 1.7,
-    'D': 1.0,  'E': 0.0, 'X': 0.0,
+    'A+': 4.3,
+    'A': 4.0,
+    'A-': 3.7,
+    'B+': 3.3,
+    'B': 3.0,
+    'B-': 2.7,
+    'C+': 2.3,
+    'C': 2.0,
+    'C-': 1.7,
+    'D': 1.0,
+    'E': 0.0,
+    'X': 0.0,
   };
 
   double _calculateGPA() {
@@ -40,7 +48,10 @@ class _GPAPredictorState extends State<GPAPredictor> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('GPA Predictor', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        title: Text(
+          'GPA Predictor',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+        ),
       ),
       body: Column(
         children: [
@@ -49,14 +60,26 @@ class _GPAPredictorState extends State<GPAPredictor> {
             padding: const EdgeInsets.symmetric(vertical: 30),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(30),
+              ),
             ),
             child: Column(
               children: [
-                Text('ESTIMATED GPA', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer)),
+                Text(
+                  'ESTIMATED GPA',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
                 Text(
                   gpa.toStringAsFixed(2),
-                  style: GoogleFonts.outfit(fontSize: 64, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                  style: GoogleFonts.outfit(
+                    fontSize: 64,
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
                 ),
               ],
             ),
@@ -87,28 +110,54 @@ class _GPAPredictorState extends State<GPAPredictor> {
                             Expanded(
                               child: DropdownButtonFormField<int>(
                                 value: _courses[index]['credits'],
-                                decoration: const InputDecoration(labelText: 'Credits'),
-                                items: [1, 2, 3, 4].map((c) => DropdownMenuItem(value: c, child: Text('$c'))).toList(),
-                                onChanged: (val) => setState(() => _courses[index]['credits'] = val),
+                                decoration: const InputDecoration(
+                                  labelText: 'Credits',
+                                ),
+                                items: [1, 2, 3, 4]
+                                    .map(
+                                      (c) => DropdownMenuItem(
+                                        value: c,
+                                        child: Text('$c'),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) => setState(
+                                  () => _courses[index]['credits'] = val,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 15),
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 value: _courses[index]['grade'],
-                                decoration: const InputDecoration(labelText: 'Grade'),
-                                items: _gradePoints.keys.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                                onChanged: (val) => setState(() => _courses[index]['grade'] = val),
+                                decoration: const InputDecoration(
+                                  labelText: 'Grade',
+                                ),
+                                items: _gradePoints.keys
+                                    .map(
+                                      (g) => DropdownMenuItem(
+                                        value: g,
+                                        child: Text(g),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (val) => setState(
+                                  () => _courses[index]['grade'] = val,
+                                ),
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                              ),
                               onPressed: () {
                                 setState(() {
-                                  if (_courses.length > 1) _courses.removeAt(index);
+                                  if (_courses.length > 1)
+                                    _courses.removeAt(index);
                                 });
                               },
-                            )
+                            ),
                           ],
                         ),
                       ],
@@ -120,10 +169,17 @@ class _GPAPredictorState extends State<GPAPredictor> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => setState(() => _courses.add({'name': '', 'credits': 3, 'grade': 'A+'})),
-        label: const Text('Add Subject'),
-        icon: const Icon(Icons.add),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 85),
+        child: FloatingActionButton.extended(
+          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+          foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+          onPressed: () => setState(
+            () => _courses.add({'name': '', 'credits': 3, 'grade': 'A+'}),
+          ),
+          label: const Text('Add Subject'),
+          icon: const Icon(Icons.add),
+        ),
       ),
     );
   }
