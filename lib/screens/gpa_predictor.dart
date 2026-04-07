@@ -12,7 +12,7 @@ class GPAPredictor extends StatefulWidget {
 
 class _GPAPredictorState extends State<GPAPredictor> {
   final List<Map<String, dynamic>> _courses = [
-    {'name': '', 'credits': 3, 'grade': 'A+'},
+    {'name': '', 'credits': 3, 'grade': null},
   ];
 
   final Map<String, double> _gradePoints = {
@@ -130,17 +130,23 @@ class _GPAPredictorState extends State<GPAPredictor> {
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 value: _courses[index]['grade'],
+                                hint: const Text('-'),
                                 decoration: const InputDecoration(
                                   labelText: 'Grade',
+                                  helperText: ''
                                 ),
-                                items: _gradePoints.keys
-                                    .map(
-                                      (g) => DropdownMenuItem(
+                                items: _gradePoints.keys.map((g) {
+                                      return DropdownMenuItem(
                                         value: g,
                                         child: Text(g),
-                                      ),
-                                    )
-                                    .toList(),
+                                      );
+                                }).toList(),
+                                validator: (value){
+                                  if(value == null || value.trim().isEmpty){
+                                    return "Please select a grade";
+                                  }
+                                  return null;
+                                },
                                 onChanged: (val) => setState(
                                   () => _courses[index]['grade'] = val,
                                 ),
@@ -153,8 +159,9 @@ class _GPAPredictorState extends State<GPAPredictor> {
                               ),
                               onPressed: () {
                                 setState(() {
-                                  if (_courses.length > 1)
+                                  if (_courses.length > 1){
                                     _courses.removeAt(index);
+                                  }
                                 });
                               },
                             ),
@@ -175,7 +182,7 @@ class _GPAPredictorState extends State<GPAPredictor> {
           backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
           foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
           onPressed: () => setState(
-            () => _courses.add({'name': '', 'credits': 3, 'grade': 'A+'}),
+            () => _courses.add({'name': '', 'credits': 3, 'grade': null}),
           ),
           label: const Text('Add Subject'),
           icon: const Icon(Icons.add),

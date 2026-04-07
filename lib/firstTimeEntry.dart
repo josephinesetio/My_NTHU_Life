@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:my_nthu_life/studentData.dart';
-import 'package:my_nthu_life/home.dart'; // Make sure to import Home!
+import 'data/studentData.dart';
+import 'screens/home.dart'; // Make sure to import Home!
 
 class FirstTimeEntry extends StatefulWidget {
   final String studentID;
