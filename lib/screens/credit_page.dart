@@ -17,9 +17,7 @@ class _CreditPageState extends State<CreditPage> {
   // ====== STATE VARIABLES ======
   
   final int graduationCredits = 128;
-   List<Semester> semesters = [
-    Semester(semesterName: "Semester 1", courses: [])
-   ];
+   List<Semester> semesters = []; //start empty
    int currentSemesterIndex = 0;
 
    @override
@@ -43,6 +41,10 @@ class _CreditPageState extends State<CreditPage> {
       final List<dynamic> decodedData = jsonDecode(encoded);
       setState(() {
         semesters = decodedData.map((item) => Semester.fromJson(item)).toList();
+      });
+    } else{
+      setState((){
+        semesters = [Semester(semesterName: "Semester 1", courses : [])];
       });
     }
   }
@@ -79,9 +81,11 @@ class _CreditPageState extends State<CreditPage> {
   // ====== CRUD ======
   void addCourse(String name, int credits) {
     setState(() {
-      semesters[currentSemesterIndex].courses.add({'name': name, 'credits': credits});
+      semesters[currentSemesterIndex].courses.add({
+        'name': name, 
+        'credits': credits
+      });
     });
-
     saveCourses();
   }
 
@@ -89,7 +93,21 @@ class _CreditPageState extends State<CreditPage> {
     setState(() {
       semesters[currentSemesterIndex].courses.removeAt(index);
     });
+    saveCourses();
+  }
 
+  void deleteSemester(int index){
+    setState(() {
+      semesters.removeAt(index);
+
+      if (semesters.isEmpty){
+        semesters.add(Semester(semesterName: "Semester 1", courses: []));
+      }
+
+      if(currentSemesterIndex >= semesters.length){
+        currentSemesterIndex = semesters.length - 1;
+      }
+    });
     saveCourses();
   }
 
@@ -224,7 +242,9 @@ class _CreditPageState extends State<CreditPage> {
                     trailing: IconButton(
                       icon: const Icon(Icons.delete),
                       onPressed: (){
-                        setState(() => semesters[index].courses.removeAt(entry.key));
+                        setState(() {
+                          semester.courses.removeAt(entry.key);
+                        });
                         saveCourses();
                       },
                     ),
@@ -240,13 +260,21 @@ class _CreditPageState extends State<CreditPage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              semester.semesterName,
-                              style: const TextStyle(
-                              fontSize: 20, 
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white // Or your theme color
+                            Row(children: [
+                              Text(
+                                semester.semesterName,
+                                style: const TextStyle(
+                                fontSize: 20, 
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white // Or your theme color
+                                ),
                               ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
+                                onPressed: () => deleteSemester(index),
+                              ),
+                            ],
                             ),
                             TextButton.icon(
                               onPressed: () {
