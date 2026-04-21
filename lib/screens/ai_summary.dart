@@ -20,7 +20,7 @@ class _AISummaryPageState extends State<AISummaryPage> {
   void initState() {
     super.initState();
     // TODO: Replace with your actual key
-    OpenAI.apiKey = "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"; 
+    OpenAI.apiKey = "OpenAI.apiKey = "YOUR_OPENAI_API_KEY";"; 
   }
 
   Future<void> _processPdf() async {
