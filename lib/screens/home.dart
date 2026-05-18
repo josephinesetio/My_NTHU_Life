@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_nthu_life/main.dart'; // import themeNotifier
+import 'package:my_nthu_life/widgets/pet_dashboard_widget.dart';
 import 'credit_page.dart';
 import 'gpa_predictor.dart';
 
@@ -460,7 +461,7 @@ class _HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "676767676767676767676767676767676767676767676767",
+                  "Track your progress, build your streak, and conquer your semester.",
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     color: Colors.white.withOpacity(0.65),
@@ -477,6 +478,13 @@ class _HomePage extends StatelessWidget {
             style: Theme.of(context).textTheme.displayLarge?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
+          ),
+
+          const SizedBox(height: 12),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 0),
+            child: PetDashboardWidget(),
           ),
         ],
       ),

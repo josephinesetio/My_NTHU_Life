@@ -37,6 +37,7 @@ dependencies:
   form_field_validator: ^1.1.0
   shared_preferences: ^2.5.4
   google_fonts: ^8.0.2
+  provider: ^6.1.5+1
 
 dev_dependencies:
   flutter_test:
@@ -62,8 +63,11 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/
-  #   - images/a_dot_ham.jpeg
+    - assets/auth.jpg
+    - assets/pet/Egg.png
+    - assets/pet/Jamil_Tsum_Tinier.png
+    - assets/pet/Jamil_Tsum_Tiny.png
+    - assets/pet/Jamil_Tsum.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
