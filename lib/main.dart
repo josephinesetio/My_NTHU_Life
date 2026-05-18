@@ -10,6 +10,9 @@ var kDarkColorScheme = MaterialTheme.darkHighContrastScheme();
 // Global notifier — any widget in the tree can toggle the theme
 final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
 
+// Any widget can read or write to this to dynamically update Jamil's coins
+final totalCreditsNotifier = ValueNotifier<int>(0);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await loadUsers();

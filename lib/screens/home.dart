@@ -482,10 +482,14 @@ class _HomePage extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 0),
-            child: PetDashboardWidget(),
-          ),
+          ValueListenableBuilder<int>(
+              valueListenable: totalCreditsNotifier,
+              builder: (context, credits, child){
+                return PetDashboardWidget(
+                  currentCredits: credits,
+                );
+              },
+            ),
         ],
       ),
     );

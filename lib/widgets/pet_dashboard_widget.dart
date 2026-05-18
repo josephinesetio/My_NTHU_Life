@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_nthu_life/pet_files/pet_data.dart'; // Make sure this path points to your pet_data.dart file
 
 class PetDashboardWidget extends StatefulWidget {
-  const PetDashboardWidget({super.key});
+  final int currentCredits;
+  const PetDashboardWidget({super.key, required this.currentCredits});
 
   @override
   State<PetDashboardWidget> createState() => _PetDashboardWidgetState();
@@ -27,8 +29,15 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
     final String? petJson = prefs.getString('user_streak_pet');
 
     if (petJson != null) {
+      final loadedPet = StreakPet.fromJson(Map<String, dynamic>.from(jsonDecode(petJson)));
+
+      if (widget.currentCredits > loadedPet.coins) {
+        loadedPet.coins = widget.currentCredits;
+        await prefs.setString('user_streak_pet', jsonEncode(loadedPet.toJson()));
+      }
+      
       setState(() {
-        _currentPet = StreakPet.fromJson(Map<String, dynamic>.from(jsonDecode(petJson)));
+        _currentPet = loadedPet;
       });
     }
     setState(() => _isLoading = false);
@@ -43,6 +52,7 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
       growthPoints: 0,
       currentStreak: 1,
       currentStage: 'egg',
+      coins: 0
     );
 
     final prefs = await SharedPreferences.getInstance();
@@ -98,7 +108,7 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                "漏 You don't have a streak pet yet!",
+                "You don't have a streak pet yet!",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
@@ -151,6 +161,25 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
                 ),
                 const SizedBox(width: 16),
                 
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.monetization_on_rounded,
+                      color: Color(0xFFFFB74D),
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "${pet.coins}",
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
                 // Name and Streak Status
                 Expanded(
                   child: Column(

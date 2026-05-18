@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_nthu_life/data/semester.dart';
+import 'package:my_nthu_life/main.dart';
+import 'package:my_nthu_life/widgets/pet_dashboard_widget.dart';
 import 'dart:convert';
 
 class CreditPage extends StatefulWidget {
@@ -35,6 +37,8 @@ class _CreditPageState extends State<CreditPage> {
         jsonEncode(semesters.map((e) => e.toJson()).toList());
 
     await prefs.setString("Semesters_${widget.studentID}", encoded);
+
+    totalCreditsNotifier.value = totalCredits;
   }
 
   Future<void> loadCourses() async {
@@ -49,6 +53,8 @@ class _CreditPageState extends State<CreditPage> {
             .map((item) => Semester.fromJson(item))
             .toList();
       });
+
+      totalCreditsNotifier.value = totalCredits;
     }
   }
 
