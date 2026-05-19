@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_nthu_life/main.dart'; // import themeNotifier
+import 'package:my_nthu_life/screens/task_list_page.dart';
 import 'package:my_nthu_life/widgets/pet_dashboard_widget.dart';
+import 'task_list_page.dart';
 import 'credit_page.dart';
 import 'gpa_predictor.dart';
 
@@ -30,6 +32,7 @@ class _HomeState extends State<Home> {
       _HomePage(studentID: widget.studentID),
       CreditPage(studentID: widget.studentID),
       GPAPredictor(studentID: widget.studentID),
+      TaskListPage(studentID: widget.studentID),
       Center(
         child: Text(
           "Notes Page",
@@ -174,10 +177,6 @@ class _SideDrawer extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      // borderRadius: BorderRadius.only(
-                      //   bottomLeft: Radius.circular(10),
-                      //   bottomRight: Radius.circular(10),
-                      // ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,6 +326,7 @@ class _FloatingNavBar extends StatelessWidget {
     (icon: Icons.home_rounded, label: 'Home'),
     (icon: Icons.school_rounded, label: 'Credits'),
     (icon: Icons.bar_chart_rounded, label: 'GPA'),
+    (icon: Icons.task_rounded, label: 'Task'),
     (icon: Icons.note_rounded, label: 'Notes'),
   ];
 
@@ -413,7 +413,7 @@ class _HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    // final cs = Theme.of(context).colorScheme;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),

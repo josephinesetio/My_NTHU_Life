@@ -12,16 +12,19 @@ class PetProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   // 1. Load the pet data as soon as the app/feature starts
-  Future<void> loadPet() async {
+  Future<void> loadPet(String studentID) async {
     _isLoading = true;
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
+
+    //Scope keys to the unique student ID
+    final String petKey = 'user_streak_pet$studentID';
+    final String loginKey = 'last_app_login_date_$studentID';
     final String? petJson = prefs.getString('user_streak_pet');
     final String? lastLoginStr = prefs.getString('last_app_login_date');
 
-    if (petJson == null) {
-      // No pet exists yet! We'll leave it null so the UI knows to show a "Choose your Egg" screen
+    if (petJson == null) {// "Choose your Egg" screen
       _currentPet = null;
     } else {
       // A pet exists, decode it
@@ -29,7 +32,7 @@ class PetProvider with ChangeNotifier {
       
       // 2. Check and update the streak based on the last login time
       if (lastLoginStr != null) {
-        _checkAndUpdateStreak(DateTime.parse(lastLoginStr));
+        _checkAndUpdateStreak(DateTime.parse(lastLoginStr), studentID);
       }
     }
 
@@ -38,29 +41,29 @@ class PetProvider with ChangeNotifier {
   }
 
   // 2. The core logic: checking the daily streak
-  void _checkAndUpdateStreak(DateTime lastLoginDate) {
+  void _checkAndUpdateStreak(DateTime lastLoginDate, String studentID) {
     if (_currentPet == null) return;
 
     final today = DateTime.now();
     final daysDifference = calculateDaysDifference(lastLoginDate, today);
 
-    if (daysDifference == 1) {
-      // Perfect! It's consecutive day. 
-      // Note: We usually increment the streak when they actually complete a task, 
-      // or right here if just opening the app is enough to maintain it.
+    if (daysDifference == 1) { //Kalo difference day cmn 1, itu berarti consecutive days cmn beda sehari
     } else if (daysDifference > 1) {
-      // Oh no, they missed a day! The streak breaks.
       _currentPet!.currentStreak = 0;
-      _currentPet!.currentStage = 'sad_egg'; // or whatever status fits your mechanics
-      savePet();
+      _currentPet!.currentStage = 'sad_egg';
+      savePet(studentID);
     }
   }
 
   // 3. Award experience/growth points when they complete an action in NTHYou
-  void awardGrowthPoints(int points) {
+  void awardGrowthPoints({required String studentID, required int exp, required int coins}) {
     if (_currentPet == null) return;
 
-    _currentPet!.growthPoints += points;
+    _currentPet!.completeTaskReward(expReward: exp, coinReward: coins);
+    _currentPet!.growthPoints += exp;
+    _currentPet!.coins += coins;
+
+    savePet(studentID);
 
     // Handle leveling up or evolving
     if (_currentPet!.growthPoints >= 100) {
@@ -72,11 +75,11 @@ class PetProvider with ChangeNotifier {
       if (_currentPet!.currentLevel == 15) _currentPet!.currentStage = 'juvenile';
     }
 
-    savePet();
+    savePet(studentID);
   }
 
   // 4. Save the pet state to local storage
-  Future<void> savePet() async {
+  Future<void> savePet(String studentID) async {
     if (_currentPet == null) return;
 
     final prefs = await SharedPreferences.getInstance();

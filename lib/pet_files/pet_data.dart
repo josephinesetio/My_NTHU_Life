@@ -46,14 +46,30 @@ class StreakPet {
 
   // Inside your StreakPet class in pet_data.dart:
 
-// We keep tracking total lifetime credits synced to total lifetime coins earned
-void rewardCoinsFromCredits(int totalAccumulatedCredits) {
-  // Rule: 1 credit = 1 coin
-  int targetTotalCoins = totalAccumulatedCredits;
-  
-  // If the student registered new credits, award them the difference!
-  if (targetTotalCoins > this.coins) {
-    this.coins = targetTotalCoins; 
+  // We keep tracking total lifetime credits synced to total lifetime coins earned
+  void rewardCoinsFromCredits(int totalAccumulatedCredits) {
+    // Rule: 1 credit = 1 coin
+    int targetTotalCoins = totalAccumulatedCredits;
+    
+    // If the student registered new credits, award them the difference!
+    if (targetTotalCoins > this.coins) {
+      this.coins = targetTotalCoins; 
+    }
   }
-}
+
+  void completeTaskReward({int expReward = 20, int coinReward = 5}) {
+    this.coins += coinReward;
+    this.growthPoints += expReward;
+
+    // Level up logic check
+    if (this.growthPoints >= 100) {
+      this.currentLevel += 1;
+      this.growthPoints = 0; // Reset EXP
+
+      // Evolution thresholds
+      if (this.currentLevel == 2) this.currentStage = 'baby';
+      if (this.currentLevel == 3) this.currentStage = 'juvenile';
+      if (this.currentLevel == 4) this.currentStage = 'adult';
+    }
+  }
 }
