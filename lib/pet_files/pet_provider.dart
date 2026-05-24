@@ -21,8 +21,10 @@ class PetProvider with ChangeNotifier {
     //Scope keys to the unique student ID
     final String petKey = 'user_streak_pet$studentID';
     final String loginKey = 'last_app_login_date_$studentID';
-    final String? petJson = prefs.getString('user_streak_pet');
-    final String? lastLoginStr = prefs.getString('last_app_login_date');
+    
+    // bug: loadpet masih pakae old key, jd ku ganti
+    final String? petJson = prefs.getString(petKey); // final String? petJson = prefs.getString('user_streak_pet');
+    final String? lastLoginStr = prefs.getString(loginKey); // final String? lastLoginStr = prefs.getString('last_app_login_date');
 
     if (petJson == null) {// "Choose your Egg" screen
       _currentPet = null;
@@ -57,23 +59,14 @@ class PetProvider with ChangeNotifier {
 
   // 3. Award experience/growth points when they complete an action in NTHYou
   void awardGrowthPoints({required String studentID, required int exp, required int coins}) {
+    // bug: ini td ada duplikat, jd aku hapus salah satu
     if (_currentPet == null) return;
 
-    _currentPet!.completeTaskReward(expReward: exp, coinReward: coins);
-    _currentPet!.growthPoints += exp;
-    _currentPet!.coins += coins;
-
-    savePet(studentID);
-
-    // Handle leveling up or evolving
-    if (_currentPet!.growthPoints >= 100) {
-      _currentPet!.currentLevel += 1;
-      _currentPet!.growthPoints = 0; // Reset or carry over leftover exp
-      
-      // Handle evolution stages
-      if (_currentPet!.currentLevel == 5) _currentPet!.currentStage = 'baby';
-      if (_currentPet!.currentLevel == 15) _currentPet!.currentStage = 'juvenile';
-    }
+    // Main reward logic
+    _currentPet!.completeTaskReward(
+      expReward: exp,
+      coinReward: coins,
+    );
 
     savePet(studentID);
   }
@@ -85,8 +78,12 @@ class PetProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final petJson = jsonEncode(_currentPet!.toJson());
     
-    await prefs.setString('user_streak_pet', petJson);
-    await prefs.setString('last_app_login_date', DateTime.now().toIso8601String());
+    // bug: savepet masih pakai old key, jd ku ganti
+    final String petKey = 'user_streak_pet$studentID';
+    final String loginKey = 'last_app_login_date_$studentID';
+    
+    await prefs.setString(petKey, petJson);
+    await prefs.setString(loginKey, DateTime.now().toIso8601String());
     
     notifyListeners(); // Tell the UI to redraw with the new data
   }
