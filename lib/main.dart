@@ -3,6 +3,9 @@ import 'package:my_nthu_life/data/studentData.dart';
 import 'package:my_nthu_life/screens/auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_nthu_life/theme/theme.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 var kColorScheme = MaterialTheme.lightScheme();
 var kDarkColorScheme = MaterialTheme.darkHighContrastScheme();
@@ -15,7 +18,10 @@ final totalCreditsNotifier = ValueNotifier<int>(0);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
   await loadUsers();
+  await dotenv.load(fileName: ".env");
+  print("API KEY: ${dotenv.env['OPENAI_API_KEY']}");
   runApp(const MyApp());
 }
 
