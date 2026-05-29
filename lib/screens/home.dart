@@ -7,6 +7,7 @@ import 'package:my_nthu_life/widgets/pet_dashboard_widget.dart';
 import 'task_list_page.dart';
 import 'transcript.dart';
 import 'study.dart';
+import 'gpa_calculator.dart';
 
 class Home extends StatefulWidget {
   final String studentID;

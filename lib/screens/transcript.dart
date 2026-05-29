@@ -318,7 +318,7 @@ class _CreditPageState extends State<CreditPage> {
     return Scaffold(
       backgroundColor: cs.surface,
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 85),
+        padding: const EdgeInsets.only(bottom: 5),
         child: FloatingActionButton(
           onPressed: () => Navigator.push(
             context,

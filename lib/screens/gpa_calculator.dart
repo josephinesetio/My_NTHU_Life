@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_nthu_life/data/calcu.dart';
 
 // ─────────────────────────────────────────────
 //  DATA MODELS
@@ -37,6 +38,52 @@ class _GpaCalculatorPageState extends State<GpaCalculatorPage> {
 
   final List<Course> _courses = [];
   int _selectedCourseIndex = 0; // which course is active
+
+  // ─── persistence ───────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final saved = await GpaStorage.loadCourses();
+    if (saved.isEmpty) return;
+    setState(() {
+      _courses.clear();
+      for (final c in saved) {
+        final components = (c['components'] as List<dynamic>)
+            .map((e) => e as Map<String, dynamic>)
+            .map(
+              (e) => CourseComponent(
+                name: e['name'] as String,
+                weight: (e['weight'] as num).toDouble(),
+                score: e['score'] != null
+                    ? (e['score'] as num).toDouble()
+                    : null,
+              ),
+            )
+            .toList();
+        _courses.add(Course(name: c['name'] as String, components: components));
+      }
+      _selectedCourseIndex = 0;
+    });
+  }
+
+  Future<void> _saveData() async {
+    final data = _courses
+        .map(
+          (c) => courseToJson(
+            c.name,
+            c.components
+                .map((x) => componentToJson(x.name, x.weight, x.score))
+                .toList(),
+          ),
+        )
+        .toList();
+    await GpaStorage.saveCourses(data);
+  }
 
   // ─── helpers ───────────────────────────────
 
@@ -181,6 +228,7 @@ class _GpaCalculatorPageState extends State<GpaCalculatorPage> {
                             _selectedCourseIndex = _courses.length - 1;
                           }
                         });
+                        _saveData();
                         Navigator.pop(ctx);
                       },
                     ),
@@ -285,6 +333,7 @@ class _GpaCalculatorPageState extends State<GpaCalculatorPage> {
                             course.components.add(comp);
                           }
                         });
+                        _saveData();
                         Navigator.pop(ctx);
                       },
                     ),
@@ -375,7 +424,7 @@ class _GpaCalculatorPageState extends State<GpaCalculatorPage> {
       backgroundColor: cs.surface,
       floatingActionButton: course != null
           ? Padding(
-              padding: const EdgeInsets.only(bottom: 85),
+              padding: const EdgeInsets.only(bottom: 5),
               child: FloatingActionButton(
                 onPressed: _showAddComponentDialog,
                 backgroundColor: purpleMain,
@@ -423,6 +472,18 @@ class _GpaCalculatorPageState extends State<GpaCalculatorPage> {
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: cs.onSurfaceVariant,
+            size: 20,
+          ),
+          onPressed: () {
+            // pop if pushed, otherwise let the parent Home handle tab switching
+            if (Navigator.canPop(context)) Navigator.pop(context);
+          },
         ),
       ],
     );
@@ -693,6 +754,7 @@ class _GpaCalculatorPageState extends State<GpaCalculatorPage> {
                       );
                     }
                   });
+                  _saveData();
                 },
               ),
             ],
@@ -1014,8 +1076,10 @@ class _GpaCalculatorPageState extends State<GpaCalculatorPage> {
                       color: cs.onSurfaceVariant.withOpacity(0.5),
                       size: 18,
                     ),
-                    onPressed: () =>
-                        setState(() => course.components.removeAt(i)),
+                    onPressed: () {
+                      setState(() => course.components.removeAt(i));
+                      _saveData();
+                    },
                   ),
                 ],
               ),
