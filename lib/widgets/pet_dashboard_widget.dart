@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:my_nthu_life/pet_files/pet_data.dart'; // Make sure this path points to your pet_data.dart file
+import 'package:my_nthu_life/pet_files/pet_data.dart'; 
 
 class PetDashboardWidget extends StatefulWidget {
   final int currentCredits;
@@ -22,7 +22,6 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
     _loadPetData();
   }
 
-  // 1. Loads the pet from SharedPreferences
   Future<void> _loadPetData() async {
     setState(() => _isLoading = true);
     final prefs = await SharedPreferences.getInstance();
@@ -43,14 +42,13 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
     setState(() => _isLoading = false);
   }
 
-  // 2. Creates a brand new pet locally
   Future<void> _initializeNewPet(String name) async {
     final newPet = StreakPet(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
       currentLevel: 1,
       growthPoints: 0,
-      currentStreak: 7, // sementara ubah ke 7
+      currentStreak: 7, 
       currentStage: 'egg',
       coins: 0
     );
@@ -63,34 +61,15 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
     });
   }
 
-  // 3. Simulates gaining EXP and handles leveling up/evolution
   Future<void> _simulateEarnEXP() async {
     if (_currentPet == null) return;
 
     setState(() {
-      // use centralized progression system:
       _currentPet!.completeTaskReward(
         expReward: 20,
         coinReward: 5,
       );
-      // debug untuk check apakah exp multiplier dan streak sudah benar
-      //print(_currentPet!.currentStreak);
-      //print(_currentPet!.expMultiplier);
     });
-      /*
-      _currentPet!.growthPoints += 20;
-
-      if (_currentPet!.growthPoints >= 100) {
-        _currentPet!.currentLevel += 1;
-        _currentPet!.growthPoints = 0; // Reset EXP
-
-        // Evolution thresholds
-        if (_currentPet!.currentLevel == 2) _currentPet!.currentStage = 'baby';
-        if (_currentPet!.currentLevel == 3) _currentPet!.currentStage = 'juvenile';
-        if (_currentPet!.currentLevel == 4) _currentPet!.currentStage = 'adult';
-      }
-    });
-    */
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_streak_pet', jsonEncode(_currentPet!.toJson()));
   }
@@ -106,7 +85,6 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
       );
     }
 
-    // STATE A: User has no pet yet -> Show Adoption Card
     if (_currentPet == null) {
       return Card(
         elevation: 4,
@@ -137,7 +115,6 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
       );
     }
 
-    // STATE B: Pet exists -> Draw the stats, progress bar, and test button
     final pet = _currentPet!;
     return Card(
       elevation: 4,
@@ -154,7 +131,7 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
                   width: 65,
                   height: 65,
                   decoration: BoxDecoration(
-                    color: Colors.purple.withAlpha(30),
+                    color: Colors.purple.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
                   child: ClipRRect(
@@ -171,34 +148,36 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
                 ),
                 const SizedBox(width: 16),
                 
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.monetization_on_rounded,
-                      color: Color(0xFFFFB74D),
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      "${pet.coins}",
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(width: 10), // tambah ini buat spacing antara coin sm level.
-                  ],
-                ),
-                // Name and Streak Status
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        pet.name,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      // Pet Name and Coin counter aligned together
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              pet.name,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.monetization_on_rounded,
+                            color: Color(0xFFFFB74D),
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${pet.coins}",
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -208,18 +187,33 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
                           fontSize: 13,
                         ),
                       ),
-
                       const SizedBox(height: 4),
 
+                      // Rank Row with Valorant Badge Icon Added Here!
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          // 1. Valorant Rank Badge Image Asset
+                          Image.asset(
+                            _getRankBadgeAsset(pet.rank),
+                            width: 18,
+                            height: 18,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback placeholder if image asset path isn't discovered yet
+                              return const Icon(Icons.shield_rounded, size: 16, color: Colors.grey);
+                            },
+                          ),
+                          const SizedBox(width: 5),
+                          
+                          // 2. Rank Text Name Label
                           Text(
                             pet.rank,
                             style: TextStyle(
                               color: _getRankColor(pet.rank),
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
-                              shadows: [
+                              shadows: const [
                                 Shadow(
                                   color: Colors.black26,
                                   blurRadius: 2,
@@ -229,12 +223,16 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
                             ),
                           ),
 
-                          Text(
-                            " • ${pet.title}",
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                          // 3. Subtitle Text Segment
+                          Expanded(
+                            child: Text(
+                              " • ${pet.title}",
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -242,6 +240,7 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 // Streak Flame Badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -250,7 +249,7 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    "冒 ${pet.currentStreak} Day",
+                    "🔥 ${pet.currentStreak} Day",
                     style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -258,7 +257,6 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
             ),
             const SizedBox(height: 20),
 
-            // Growth Progress Bar Layout
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -278,7 +276,6 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
             ),
             const SizedBox(height: 16),
 
-            // Mock Testing Button
             ElevatedButton.icon(
               onPressed: _simulateEarnEXP,
               icon: const Icon(Icons.check_circle_outline, size: 18),
@@ -300,34 +297,45 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
     switch (rank) {
       case 'Bronze':
         return const Color(0xFF8C5A2B);
-
       case 'Silver':
         return const Color(0xFF6E7C91);
-
       case 'Gold':
         return const Color(0xFFB38B2D);
-
       case 'Diamond':
         return const Color(0xFF3AA6A0);
-
       default:
         return Colors.black87;
     }
   }
 
-  // Returns the emoji representation based on evolution status
+  // NEW: Maps the competitive rank names to custom local Image Asset files
+  String _getRankBadgeAsset(String rank) {
+    switch (rank) {
+      case 'Bronze':
+        return 'assets/badge/bronze_badge.png';
+      case 'Silver':
+        return 'assets/badge/silver.png';
+      case 'Gold':
+        return 'assets/badge/gold_badge.png';
+      case 'Diamond':
+        return 'assets/badge/diamond_badge.png';
+      default:
+        return 'assets/badge/bronze_badge.png';
+    }
+  }
+
   String _getPetAssetPath(String stage) {
     switch (stage) {
       case 'egg': 
         return 'assets/pet/Egg.png';
       case 'baby': 
-        return 'assets/pet/Jamil_Tsum_Tinier.png';
+        return 'assets/pet/baby.png';
       case 'juvenile': 
-        return 'assets/pet/Jamil_Tsum_Tiny.png';
+        return 'assets/pet/juvenile.png';
       case 'adult': 
-        return 'assets/pet/Jamil_Tsum.png';
+        return 'assets/pet/adult.png';
       default: 
-        return 'assets/pet/Jamil_Tsum.png';
+        return 'assets/pet/adult.png';
     }
   }
 }

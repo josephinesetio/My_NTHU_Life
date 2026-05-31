@@ -66,9 +66,10 @@ flutter:
   assets:
     - assets/auth.jpg
     - assets/pet/Egg.png
-    - assets/pet/Jamil_Tsum_Tinier.png
-    - assets/pet/Jamil_Tsum_Tiny.png
-    - assets/pet/Jamil_Tsum.png
+    - assets/pet/baby.png
+    - assets/pet/juvenile.png
+    - assets/pet/adult.png
+    - assets/badge/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
