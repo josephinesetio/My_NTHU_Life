@@ -310,7 +310,7 @@ class _CreditPageState extends State<CreditPage> {
 
     // Overlay colors: use onSurface with opacity to replicate the
     // original 0x0D/0x1A/0x33/0x80 white-overlay style, but theme-aware.
-    final containerBg = cs.onSurface.withOpacity(0.05); // was 0x0DFFFFFF
+    final containerBg = cs.surfaceContainerLow; // was 0x0DFFFFFF
     final containerBorder = cs.onSurface.withOpacity(0.10); // was 0x1AFFFFFF
     final purpleOverlay = purpleMain.withOpacity(0.20); // was 0x337C3AED
     final purpleOverlayLight = purpleMain.withOpacity(0.15); // was 0x267C3AED
@@ -692,7 +692,7 @@ class _CreditPageState extends State<CreditPage> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: cs.onSurface.withOpacity(0.05),
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: cs.onSurface.withOpacity(0.10)),
       ),

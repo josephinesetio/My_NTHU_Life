@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_nthu_life/main.dart'; // import themeNotifier
+import 'package:my_nthu_life/screens/party.dart';
 import 'package:my_nthu_life/screens/profile.dart';
 import 'package:my_nthu_life/screens/task_list_page.dart';
 import 'package:my_nthu_life/widgets/pet_dashboard_widget.dart';
@@ -45,12 +46,13 @@ class _HomeState extends State<Home> {
       CreditPage(studentID: widget.studentID),
       GPAPredictor(studentID: widget.studentID),
       TaskListPage(studentID: widget.studentID),
-      Center(
-        child: Text(
-          "Notes Page",
-          style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
-        ),
-      ),
+      PartyPage(studentID: widget.studentID),
+      // Center(
+      //   child: Text(
+      //     "Notes Page",
+      //     style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
+      //   ),
+      // ),
     ];
   }
 
