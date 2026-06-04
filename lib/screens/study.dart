@@ -196,7 +196,46 @@ class _AIStudyMaterialWidgetState
                 ),
               ),
               const SizedBox(height: 20),
+              if (summaryResult != null) ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1F1B24),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: borderPurple),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.notes, color: primaryPurple),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Summary Notes",
+                            style: GoogleFonts.outfit(
+                              color: textLight,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
 
+                      Text(
+                        summaryResult ?? "",
+                        style: GoogleFonts.outfit(
+                          color: textMuted,
+                          fontSize: 13,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               // --- 3. YOUTUBE STUDY VIDEOS SECTION ---
               Container(
                 width: double.infinity,
