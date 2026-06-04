@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-class AIStudyMaterialWidget extends StatelessWidget {
+import 'package:my_nthu_life/services/ai_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+//hello
+class AIStudyMaterialWidget extends StatefulWidget {
   const AIStudyMaterialWidget({super.key});
 
+  @override
+  State<AIStudyMaterialWidget> createState() => _AIStudyMaterialWidgetState();
+}
+
+class _AIStudyMaterialWidgetState
+  extends State<AIStudyMaterialWidget>{
+  final TextEditingController _controller = TextEditingController();
+  List<Map<String, dynamic>> videos = [];
+  bool isLoading = false;
+  String? summaryResult;
+  bool isSummarizing = false;
+  bool hasSearched = false;
   @override
   Widget build(BuildContext context) {
     // --- DARK MODE COLOR THEME CONFIGURATION ---
@@ -115,6 +130,7 @@ class AIStudyMaterialWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     TextField(
+                      controller: _controller,
                       style: GoogleFonts.outfit(color: textLight),
                       decoration: InputDecoration(
                         hintText: "e.g. Explain photosynthesis in simple terms",
@@ -126,15 +142,18 @@ class AIStudyMaterialWidget extends StatelessWidget {
                         filled: true,
                         suffixIcon: Padding(
                           padding: const EdgeInsets.all(6.0),
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: primaryPurple,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.arrow_upward_rounded,
-                              color: Colors.white,
-                              size: 18,
+                          child: GestureDetector(
+                            onTap : _searchVideos,
+                            child : Container(
+                              decoration : const BoxDecoration(
+                                color : primaryPurple,
+                                shape: BoxShape.circle,
+                              ),
+                              child : const Icon(
+                                Icons.arrow_upward_rounded,
+                                color : Colors.white,
+                                size : 18,
+                              ),
                             ),
                           ),
                         ),
@@ -158,7 +177,7 @@ class AIStudyMaterialWidget extends StatelessWidget {
                       child: Row(
                         children: [
                           _buildActionButton(Icons.menu_book_outlined, "Explain a topic", primaryPurple, borderPurple),
-                          _buildActionButton(Icons.description_outlined, "Summarize notes", primaryPurple, borderPurple),
+                          _buildActionButton(Icons.description_outlined, "Summarize notes", primaryPurple, borderPurple, onTap: _summarizeNotes,),
                           _buildActionButton(Icons.play_circle_outline_rounded, "Recommend videos", primaryPurple, borderPurple),
                           _buildActionButton(Icons.more_horiz, "More", primaryPurple, borderPurple),
                         ],
@@ -204,17 +223,33 @@ class AIStudyMaterialWidget extends StatelessWidget {
                     const SizedBox(height: 4),
                   
                     const SizedBox(height: 16),
-                    _buildVideoPlaceholderItem(textMuted, borderPurple),
-                    Divider(height: 24, color: borderPurple.withOpacity(0.5)),
-                    _buildVideoPlaceholderItem(textMuted, borderPurple),
-                    Divider(height: 24, color: borderPurple.withOpacity(0.5)),
-                    _buildVideoPlaceholderItem(textMuted, borderPurple),
+                    if(isLoading)
+                      const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                    else if (!hasSearched) 
+                      Text(
+                        "Ask a topic to get recommendations",
+                        style: GoogleFonts.outfit(
+                          color: textMuted,
+                        ),
+                      )
+                    else if(isLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else if(videos.isEmpty)
+                      Text("No videos found", style: GoogleFonts.outfit(color: textMuted),)
+                    else
+                      Column(
+                        children: videos
+                          .map((video) => _buildVideoItem(video))
+                          .toList(),
+                      ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       height: 44,
                       child: OutlinedButton(
-                        onPressed: () {},
+                        onPressed: _openYouTubeSearch,
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: borderPurple),
                           shape: RoundedRectangleBorder(
@@ -305,8 +340,16 @@ class AIStudyMaterialWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, Color primaryPurple, Color borderPurple) {
-    return Container(
+  Widget _buildActionButton(
+  IconData icon,
+  String label,
+  Color primaryPurple,
+  Color borderPurple, {
+  VoidCallback? onTap,
+}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
       margin: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
         label: Row(
@@ -329,8 +372,9 @@ class AIStudyMaterialWidget extends StatelessWidget {
         side: BorderSide(color: borderPurple),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildVideoPlaceholderItem(Color mutedColor, Color borderPurple) {
     return Row(
@@ -415,4 +459,227 @@ class AIStudyMaterialWidget extends StatelessWidget {
       ],
     );
   }
+Widget _buildVideoItem(Map<String, dynamic> video) {
+  print("VIDEO DATA: $video");
+
+  return ListTile(
+    contentPadding: EdgeInsets.zero,
+
+    onTap: () {
+      final url = video["url"]?.toString();
+
+      final fallbackQuery =
+          video["youtubeKeywords"]?.first ??
+          video["title"] ??
+          "";
+
+      final finalUrl = (url != null && url.isNotEmpty)
+          ? url
+          : "https://www.youtube.com/results?search_query=${Uri.encodeComponent(fallbackQuery)}";
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => YoutubePlayerScreen(url: finalUrl),
+        ),
+      );
+    },
+
+    leading: Container(
+      width: 120,
+      height: 70,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2D2636),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(
+        Icons.play_circle_fill,
+        color: Colors.red,
+        size: 32,
+      ),
+    ),
+
+    title: Text(
+      video["title"] ?? "No title",
+      style: GoogleFonts.outfit(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+
+    subtitle: Text(
+      video["channel"] ?? "Unknown channel",
+      style: GoogleFonts.outfit(
+        color: Colors.grey,
+      ),
+    ),
+  );
 }
+  Future<void> _searchVideos() async {
+  try {
+    final topic = _controller.text.trim();
+
+    if (topic.isEmpty) return;
+
+    setState(() {
+      isLoading = true;
+      hasSearched = true;
+    });
+
+    final result = await AIService.generateRoadmap(topic);
+
+    print(result);
+
+    setState(() {
+      videos = List<Map<String, dynamic>>.from(
+        result["videos"] ?? [],
+      );
+      isLoading = false;
+    });
+
+  } catch (e) {
+    print("ERROR: $e");
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+}
+  Future<void> _openYouTubeSearch() async {
+  final topic = _controller.text.trim();
+  if (topic.isEmpty) return;
+
+  final url = Uri.parse(
+    "https://www.youtube.com/results?search_query=$topic"
+  );
+
+  if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+    throw "Could not open YouTube";
+  }
+}
+  Future<void> _summarizeNotes() async {
+  try {
+    final text = _controller.text.trim();
+
+    if (text.isEmpty) return;
+    if (isSummarizing) return;
+
+    setState(() {
+      isSummarizing = true;
+    });
+
+    final result = await AIService.summarizeNotes(text);
+
+    final summary = result["summary"];
+
+    if (summary == null || summary.isEmpty) {
+      setState(() {
+        isSummarizing = false;
+      });
+      return;
+    }
+
+    setState(() {
+      summaryResult = summary;
+      isSummarizing = false;
+    });
+
+    _showSummaryBottomSheet();
+
+  } catch (e) {
+    print("SUMMARY ERROR: $e");
+
+    setState(() {
+      isSummarizing = false;
+    });
+  }
+}
+  void _showSummaryBottomSheet() {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: const Color(0xFF1F1B24),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Text(
+            summaryResult ?? "",
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+}
+
+class YoutubePlayerScreen extends StatefulWidget {
+  final String url;
+
+  const YoutubePlayerScreen({super.key, required this.url});
+
+  @override
+  State<YoutubePlayerScreen> createState() => _YoutubePlayerScreenState();
+}
+
+class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
+  YoutubePlayerController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final videoId = YoutubePlayer.convertUrlToId(widget.url);
+
+    if (videoId == null) {
+      debugPrint("Invalid YouTube URL: ${widget.url}");
+      return;
+    }
+
+    _controller = YoutubePlayerController(
+      initialVideoId: videoId,
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        mute: false,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_controller == null) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Text(
+            "Invalid YouTube link",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: YoutubePlayer(
+          controller: _controller!,
+          showVideoProgressIndicator: true,
+        ),
+      ),
+    );
+  }
+}
+
