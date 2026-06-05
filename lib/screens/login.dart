@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../widgets/auth_widgets.dart';
 import 'home.dart';
 
@@ -21,6 +22,13 @@ class _LoginState extends State<Login> {
   String? _error;
   bool _isLoading = false;
 
+  static const Color _bgBlack = Color(0xFF0B090A);
+  static const Color _cardDark = Color(0xFF16121E);
+  static const Color _neonPurple = Color(0xFFC77DFF);
+  static const Color _deepPurple = Color(0xFF7B2CBF);
+  static const Color _borderPurple = Color(0xFF3C096C);
+  static const Color _darkBorder = Color(0xFF240046);
+
   void _handleLogin() async {
     setState(() => _error = null);
 
@@ -32,7 +40,6 @@ class _LoginState extends State<Login> {
     setState(() => _isLoading = true);
 
     try {
-      // Find the user's email by student ID
       final userQuery = await FirebaseFirestore.instance
           .collection('users')
           .where('studentID', isEqualTo: id)
@@ -70,6 +77,41 @@ class _LoginState extends State<Login> {
     }
   }
 
+  Widget _buildInputField({
+    required String label,
+    required IconData icon,
+    bool obscure = false,
+    Widget? suffixIcon,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardDark,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _borderPurple, width: 1.2),
+      ),
+      child: TextField(
+        obscureText: obscure,
+        style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: GoogleFonts.outfit(
+            color: _neonPurple.withOpacity(0.7),
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(icon, color: _deepPurple, size: 20),
+          suffixIcon: suffixIcon,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -78,20 +120,42 @@ class _LoginState extends State<Login> {
           ? CrossAxisAlignment.center
           : CrossAxisAlignment.start,
       children: [
-        Text("Welcome Back", style: Theme.of(context).textTheme.titleLarge),
+        // Header
+        Text(
+          "SYSTEM LOGIN",
+          style: GoogleFonts.orbitron(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 2,
+          ),
+        ),
         const SizedBox(height: 6),
         Text(
-          "Log in to your NTHU Life account",
-          style: Theme.of(context).textTheme.titleSmall,
+          "Authenticate your NTHU identity",
+          style: GoogleFonts.outfit(fontSize: 13, color: _deepPurple),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 1.5,
+          width: 60,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [_neonPurple, _borderPurple]),
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
         const SizedBox(height: 32),
-        authInputField(
+
+        // Student ID field
+        _buildInputField(
           label: "Student ID",
           icon: Icons.badge_outlined,
           onChanged: (v) => id = v,
         ),
-        const SizedBox(height: 16),
-        authInputField(
+        const SizedBox(height: 14),
+
+        // Password field
+        _buildInputField(
           label: "Password",
           icon: Icons.lock_outline_rounded,
           obscure: !_passwordVisible,
@@ -100,7 +164,7 @@ class _LoginState extends State<Login> {
               _passwordVisible
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
-              color: Colors.white38,
+              color: _deepPurple,
               size: 18,
             ),
             onPressed: () =>
@@ -108,32 +172,97 @@ class _LoginState extends State<Login> {
           ),
           onChanged: (v) => password = v,
         ),
+
+        // Forgot password
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () => _showResetPasswordDialog(context),
-            child: const Text(
+            child: Text(
               "Forgot Password?",
-              style: TextStyle(
-                color: Color(0xFF7C3AED),
+              style: GoogleFonts.outfit(
+                color: _neonPurple,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ),
+
+        // Error banner
         if (_error != null) ...[
-          const SizedBox(height: 12),
-          authErrorBanner(_error!),
-        ],
-        const SizedBox(height: 28),
-        _isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : authPrimaryButton(
-              label: "Log In",
-              accent: const Color(0xFF7C3AED),
-              onTap: _handleLogin,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.withOpacity(0.4)),
             ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  color: Colors.redAccent,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _error!,
+                    style: GoogleFonts.outfit(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        const SizedBox(height: 8),
+
+        // Login button
+        _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFFC77DFF)),
+              )
+            : GestureDetector(
+                onTap: _handleLogin,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF5A189A), Color(0xFF7B2CBF)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _neonPurple.withOpacity(0.4)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _deepPurple.withOpacity(0.5),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      "INITIATE LOGIN",
+                      style: GoogleFonts.orbitron(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+        // Switch to signup
         if (widget.narrow) ...[
           const SizedBox(height: 24),
           Center(
@@ -141,16 +270,16 @@ class _LoginState extends State<Login> {
               onTap: widget.onSwitchToSignup,
               child: RichText(
                 text: TextSpan(
-                  text: "Don't have an account? ",
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.45),
+                  text: "No account? ",
+                  style: GoogleFonts.outfit(
+                    color: Colors.white.withOpacity(0.4),
                     fontSize: 13,
                   ),
-                  children: const [
+                  children: [
                     TextSpan(
                       text: "Sign Up",
-                      style: TextStyle(
-                        color: Color(0xFF3A52ED),
+                      style: GoogleFonts.outfit(
+                        color: _neonPurple,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -163,54 +292,107 @@ class _LoginState extends State<Login> {
       ],
     );
   }
+
   void _showResetPasswordDialog(BuildContext context) {
-  final controller = TextEditingController();
+    final controller = TextEditingController();
 
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text("Reset Password"),
-      content: TextField(
-        controller: controller,
-        decoration: const InputDecoration(
-          labelText: "Enter your email",
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _borderPurple, width: 1.5),
         ),
+        title: Text(
+          "RESET PASSWORD",
+          style: GoogleFonts.orbitron(
+            fontWeight: FontWeight.bold,
+            color: _neonPurple,
+            fontSize: 14,
+            letterSpacing: 1,
+          ),
+        ),
+        content: Container(
+          decoration: BoxDecoration(
+            color: Color(0xFF0B090A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _borderPurple, width: 1),
+          ),
+          child: TextField(
+            controller: controller,
+            style: GoogleFonts.outfit(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: "Enter your email",
+              labelStyle: GoogleFonts.outfit(
+                color: _neonPurple.withOpacity(0.7),
+              ),
+              prefixIcon: const Icon(
+                Icons.email_outlined,
+                color: Color(0xFF7B2CBF),
+                size: 20,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 14,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "Cancel",
+              style: GoogleFonts.outfit(color: Colors.grey),
+            ),
+          ),
+          GestureDetector(
+            onTap: () async {
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(
+                  email: controller.text.trim(),
+                );
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      "Reset link sent.",
+                      style: GoogleFonts.outfit(),
+                    ),
+                    backgroundColor: _deepPurple,
+                  ),
+                );
+              } on FirebaseAuthException catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(e.message ?? "Error occurred"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: _deepPurple,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _neonPurple.withOpacity(0.4)),
+              ),
+              child: Text(
+                "SEND",
+                style: GoogleFonts.orbitron(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            try {
-              await FirebaseAuth.instance.sendPasswordResetEmail(
-                email: controller.text.trim(),
-              );
-
-              Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Reset link sent to email"),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            } on FirebaseAuthException catch (e) {
-              Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(e.message ?? "Error occurred"),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          },
-          child: const Text("Send"),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 }

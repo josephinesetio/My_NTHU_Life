@@ -68,7 +68,7 @@ class _AuthState extends State<Auth> with SingleTickerProviderStateMixin {
   Widget _buildWideLayout() {
     return Container(
       width: 860,
-      height: 560,
+      height: 680,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceBright.withOpacity(0.08),
         borderRadius: BorderRadius.circular(10),
@@ -173,7 +173,7 @@ class _AuthState extends State<Auth> with SingleTickerProviderStateMixin {
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
-            height: 560,
+            height: 620,
             decoration: BoxDecoration(
               color: Theme.of(
                 context,
