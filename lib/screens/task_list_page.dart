@@ -301,6 +301,7 @@ class _TaskListPageState extends State<TaskListPage> {
                             ),
                             'exp': computedExp,
                             'coins': computedCoins,
+                            'isDone': false,
                             'createdAt': FieldValue.serverTimestamp(),
                           });
                     }
@@ -669,7 +670,7 @@ class _TaskListPageState extends State<TaskListPage> {
                                     final int coinsGained = task['coins'] ?? 5;
 
                                     return Card(
-                                      color: cardDarkPurple,
+                                      color: (task['isDone'] ?? false) ? cardDarkPurple.withOpacity(0.6) : cardDarkPurple,
                                       margin: const EdgeInsets.only(bottom: 10),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(14),
@@ -688,40 +689,37 @@ class _TaskListPageState extends State<TaskListPage> {
                                         title: Text(
                                           task['title'] ?? '',
                                           style: GoogleFonts.outfit(
-                                            color: Colors.white,
+                                            color: (task['isDone'] ?? false) ? Colors.white54 : Colors.white,
                                             fontSize: 15,
+                                            decoration: (task['isDone'] ?? false) ? TextDecoration.lineThrough : null,
+                                            decorationColor: Colors.grey,
                                           ),
                                         ),
                                         subtitle: Text(
-                                          "${courseName.toUpperCase()} • $category (+$expGained EXP)",
+                                          "${courseName.toUpperCase()} • $category",
                                           style: GoogleFonts.outfit(
                                             color: Colors.grey.shade500,
                                             fontSize: 11,
                                           ),
                                         ),
                                         trailing: IconButton(
-                                          icon: const Icon(
-                                            Icons.radio_button_off,
-                                            color: neonLightPurple,
+                                          icon: Icon(
+                                            (task['isDone'] ?? false) ? Icons.check_circle : Icons.radio_button_off,
+                                            color: (task['isDone'] ?? false) ? Colors.greenAccent : neonLightPurple,
                                           ),
-                                          onPressed: () async {
-                                            // 1. Award reward values to Pet State Management Engine
-                                            Provider.of<PetProvider>(
-                                              context,
-                                              listen: false,
-                                            ).awardGrowthPoints(
-                                              studentID: widget.studentID,
-                                              exp: expGained,
-                                              coins: coinsGained,
-                                            );
+                                          onPressed: (task['isDone'] ?? false) ? null :() async {
+                                            setState(() {
+                                              task['isDone'] = true;
+                                            });
 
-                                            // 2. Wipe completed node records completely out of Firestore
                                             await FirebaseFirestore.instance
-                                                .collection('users')
-                                                .doc(widget.studentID)
-                                                .collection('tasks')
-                                                .doc(doc.id)
-                                                .delete();
+                                              .collection('users')
+                                              .doc(widget.studentID)
+                                              .collection('tasks')
+                                              .doc(doc.id)
+                                              .update({
+                                              'isDone': true,
+                                            });
                                           },
                                         ),
                                       ),
