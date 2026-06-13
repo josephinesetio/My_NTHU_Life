@@ -302,6 +302,7 @@ class _TaskListPageState extends State<TaskListPage> {
                             ),
                             'exp': computedExp,
                             'coins': computedCoins,
+                            'isDone': false,
                             'createdAt': FieldValue.serverTimestamp(),
                           });
                     }
@@ -692,10 +693,15 @@ class _TaskListPageState extends State<TaskListPage> {
                                           style: GoogleFonts.outfit(
                                             color: cs.onSurface,
                                             fontSize: 15,
+                                            decoration:
+                                                (task['isDone'] ?? false)
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                            decorationColor: Colors.grey,
                                           ),
                                         ),
                                         subtitle: Text(
-                                          "${courseName.toUpperCase()} • $category (+$expGained EXP)",
+                                          "${courseName.toUpperCase()} • $category",
                                           style: GoogleFonts.outfit(
                                             color: cs.onSurfaceVariant,
                                             fontSize: 11,
@@ -703,26 +709,28 @@ class _TaskListPageState extends State<TaskListPage> {
                                         ),
                                         trailing: IconButton(
                                           icon: Icon(
-                                            Icons.radio_button_off,
-                                            color: cs.primaryContainer,
+                                            (task['isDone'] ?? false)
+                                                ? Icons.check_circle
+                                                : Icons.radio_button_off,
+                                            color: (task['isDone'] ?? false)
+                                                ? Colors.greenAccent
+                                                : cs.primary,
                                           ),
-                                          onPressed: () async {
-                                            Provider.of<PetProvider>(
-                                              context,
-                                              listen: false,
-                                            ).awardGrowthPoints(
-                                              studentID: widget.studentID,
-                                              exp: expGained,
-                                              coins: coinsGained,
-                                            );
+                                          onPressed: (task['isDone'] ?? false)
+                                              ? null
+                                              : () async {
+                                                  setState(() {
+                                                    task['isDone'] = true;
+                                                  });
 
-                                            await FirebaseFirestore.instance
-                                                .collection('users')
-                                                .doc(widget.studentID)
-                                                .collection('tasks')
-                                                .doc(doc.id)
-                                                .delete();
-                                          },
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('users')
+                                                      .doc(widget.studentID)
+                                                      .collection('tasks')
+                                                      .doc(doc.id)
+                                                      .update({'isDone': true});
+                                                },
                                         ),
                                       ),
                                     );

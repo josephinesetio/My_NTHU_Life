@@ -221,25 +221,136 @@ class _HomeState extends State<Home> {
       ),
       backgroundColor: cs.surface,
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _selectedIndex,
+      //   onTap: _onTap,
+      //   type: BottomNavigationBarType.fixed,
+      //   selectedItemColor: const Color(0xFF7C3AED),
+      //   unselectedItemColor: Colors.grey,
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.school),
+      //       label: 'Transcript',
+      //     ),
+      //     BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Study'),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.task_rounded),
+      //       label: 'Quest',
+      //     ),
+      //     BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Party'),
+      //   ],
+      // ),
+      bottomNavigationBar: _CustomNavBar(
+        selectedIndex: _selectedIndex,
         onTap: _onTap,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF7C3AED),
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.school),
-            label: 'Transcript',
+      ),
+    );
+  }
+}
+
+class _CustomNavBar extends StatelessWidget {
+  final int selectedIndex;
+  final void Function(int) onTap;
+
+  const _CustomNavBar({required this.selectedIndex, required this.onTap});
+
+  static const _items = [
+    (icon: Icons.home_rounded, label: 'HOME'),
+    (icon: Icons.school_rounded, label: 'TRANSCRIPT'),
+    (icon: Icons.auto_stories_rounded, label: 'STUDY'),
+    (icon: Icons.crisis_alert_rounded, label: 'QUEST'),
+    (icon: Icons.groups_rounded, label: 'PARTY'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        border: Border(top: BorderSide(color: cs.outlineVariant, width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            children: List.generate(_items.length, (i) {
+              final item = _items[i];
+              final isSelected = i == selectedIndex;
+
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? cs.primaryContainer.withOpacity(0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                      border: isSelected
+                          ? Border.all(
+                              color: cs.primaryContainer.withOpacity(0.25),
+                              width: 1,
+                            )
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Icon with animated scale
+                        AnimatedScale(
+                          scale: isSelected ? 1.15 : 1.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            item.icon,
+                            size: 22,
+                            color: isSelected
+                                ? cs.primaryContainer
+                                : cs.onSurfaceVariant.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Label
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 200),
+                          style: GoogleFonts.orbitron(
+                            fontSize: isSelected ? 7.5 : 7,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w400,
+                            color: isSelected
+                                ? cs.primaryContainer
+                                : cs.onSurfaceVariant.withOpacity(0.4),
+                            letterSpacing: isSelected ? 1 : 0.5,
+                          ),
+                          child: Text(item.label),
+                        ),
+                        // Active indicator dot
+                        const SizedBox(height: 4),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: isSelected ? 16 : 0,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            color: cs.primaryContainer,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Study'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.task_rounded),
-            label: 'Quest',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Party'),
-        ],
+        ),
       ),
     );
   }
@@ -606,6 +717,14 @@ class _TodayMissionsCard extends StatelessWidget {
 
             final docs = snapshot.data?.docs ?? [];
 
+            // Show all tasks (including done), filter empty separately
+            final pendingDocs = docs
+                .where((d) => !(d.data()['isDone'] ?? false))
+                .toList();
+            final doneDocs = docs
+                .where((d) => d.data()['isDone'] ?? false)
+                .toList();
+
             if (docs.isEmpty) {
               return Container(
                 width: double.infinity,
@@ -627,64 +746,115 @@ class _TodayMissionsCard extends StatelessWidget {
             }
 
             return Column(
-              children: docs.map((doc) {
-                final task = doc.data();
-                final catColor = _getCategoryColor(task['category'] ?? 'Other');
-                final expGained = task['exp'] ?? 10;
-
-                return Card(
-                  color: cs.surfaceContainerLow,
-                  margin: const EdgeInsets.only(bottom: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
-                  ),
-                  child: ListTile(
-                    leading: Container(width: 4, height: 26, color: catColor),
-                    title: Text(
-                      task['title'] ?? '',
-                      style: GoogleFonts.outfit(
-                        fontSize: 15,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    subtitle: Text(
-                      "${(task['course'] ?? '').toUpperCase()} • ${task['category'] ?? ''} (+$expGained EXP)",
-                      style: GoogleFonts.outfit(
-                        fontSize: 11,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(
-                        Icons.radio_button_off,
-                        color: cs.primaryContainer,
-                      ),
-                      onPressed: () async {
-                        final coinsGained = task['coins'] ?? 5;
-                        Provider.of<PetProvider>(
-                          context,
-                          listen: false,
-                        ).awardGrowthPoints(
-                          studentID: studentID,
-                          exp: expGained,
-                          coins: coinsGained,
-                        );
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(studentID)
-                            .collection('tasks')
-                            .doc(doc.id)
-                            .delete();
-                      },
-                    ),
-                  ),
-                );
-              }).toList(),
+              children: [
+                // Pending tasks first
+                ...pendingDocs.map(
+                  (doc) => _buildTaskCard(context, doc, cs, isDone: false),
+                ),
+                // Completed tasks below with muted style
+                ...doneDocs.map(
+                  (doc) => _buildTaskCard(context, doc, cs, isDone: true),
+                ),
+              ],
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildTaskCard(
+    BuildContext context,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    ColorScheme cs, {
+    required bool isDone,
+  }) {
+    final task = doc.data();
+    final catColor = _getCategoryColor(task['category'] ?? 'Other');
+    final expGained = task['exp'] ?? 10;
+    final coinsGained = task['coins'] ?? 5;
+
+    return Card(
+      color: cs.surfaceContainerLow,
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: isDone
+              ? cs.outlineVariant.withOpacity(0.2)
+              : cs.outlineVariant.withOpacity(0.5),
+        ),
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 4,
+          height: 26,
+          color: isDone ? catColor.withOpacity(0.3) : catColor,
+        ),
+        title: Text(
+          task['title'] ?? '',
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            color: isDone ? cs.onSurface.withOpacity(0.4) : cs.onSurface,
+            decoration: isDone ? TextDecoration.lineThrough : null,
+            decorationColor: cs.onSurface.withOpacity(0.4),
+          ),
+        ),
+        subtitle: Text(
+          "${(task['course'] ?? '').toUpperCase()} • ${task['category'] ?? ''} (+$expGained EXP)",
+          style: GoogleFonts.outfit(
+            fontSize: 11,
+            color: isDone
+                ? cs.onSurfaceVariant.withOpacity(0.4)
+                : cs.onSurfaceVariant,
+          ),
+        ),
+        trailing: IconButton(
+          icon: Icon(
+            isDone ? Icons.check_circle : Icons.radio_button_off,
+            color: isDone ? Colors.greenAccent : cs.primaryContainer,
+          ),
+          // Matches task_list_page: disable button once done, no un-completing
+          onPressed: isDone
+              ? null
+              : () async {
+                  // Mark isDone: true first — same as task_list_page
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(studentID)
+                      .collection('tasks')
+                      .doc(doc.id)
+                      .update({'isDone': true});
+
+                  // Award EXP + coins — guard against missing provider
+                  try {
+                    Provider.of<PetProvider>(
+                      context,
+                      listen: false,
+                    ).awardGrowthPoints(
+                      studentID: studentID,
+                      exp: expGained,
+                      coins: coinsGained,
+                    );
+                  } catch (_) {
+                    // Provider not in tree — write directly to Firestore instead
+                    final userRef = FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(studentID);
+                    final snap = await userRef.get();
+                    final petMap = snap.data()?['pet'] as Map<String, dynamic>?;
+                    if (petMap != null) {
+                      final currentCoins = (petMap['coins'] ?? 0) as int;
+                      final currentGP = (petMap['growthPoints'] ?? 0) as int;
+                      await userRef.update({
+                        'pet.coins': currentCoins + coinsGained,
+                        'pet.growthPoints': currentGP + expGained,
+                      });
+                    }
+                  }
+                },
+        ),
+      ),
     );
   }
 }

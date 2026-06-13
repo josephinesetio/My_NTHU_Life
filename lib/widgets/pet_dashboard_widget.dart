@@ -4,11 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:my_nthu_life/pet_files/pet_data.dart';
 import 'package:my_nthu_life/services/firestore_services.dart';
 
-class PetDashboardWidget extends StatelessWidget {
+class PetDashboardWidget extends StatefulWidget {
   final int currentCredits;
   final String studentID;
 
-  PetDashboardWidget({
+  const PetDashboardWidget({
     super.key,
     required this.currentCredits,
     required this.studentID,
@@ -17,12 +17,25 @@ class PetDashboardWidget extends StatelessWidget {
   static const purpleMain = Color(0xFF7C3AED);
   static const purpleDark = Color(0xFF6D28D9);
 
+  @override
+  State<PetDashboardWidget> createState() => _PetDashboardWidgetState();
+}
+
+class _PetDashboardWidgetState extends State<PetDashboardWidget> {
   final FirestoreService _firestoreService = FirestoreService();
+  StreakPet? _currentPet;
 
   String get _todayKey {
     final now = DateTime.now();
     return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   }
+
+  final List<Map<String, dynamic>> accessories = [
+    {'name': '👓 Cool Glasses', 'price': 20},
+    {'name': '🎀 Pink Ribbon', 'price': 25},
+    {'name': '🪄 Wizard Hat', 'price': 40},
+    {'name': '👑 Golden Crown', 'price': 60},
+  ];
 
   Future<void> _initializeNewPet(String name) async {
     final newPet = StreakPet(
@@ -32,19 +45,390 @@ class PetDashboardWidget extends StatelessWidget {
       growthPoints: 0,
       currentStreak: 1,
       currentStage: 'egg',
-      coins: currentCredits,
+      coins: 100,
+      ownedAccessories: [],
+      equippedAccessory: '',
     );
-    await _firestoreService.savePetData(
-      uid: studentID,
-      petJsonMap: newPet.toJson(),
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.studentID)
+        .set({'pet': newPet.toJson()}, SetOptions(merge: true));
+
+    setState(() => _currentPet = newPet);
+  }
+
+  Future<void> _buyAccessory(String itemName, int price) async {
+    if (_currentPet == null || _currentPet!.coins < price) return;
+
+    setState(() {
+      _currentPet!.coins -= price;
+      _currentPet!.ownedAccessories.add(itemName);
+    });
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.studentID)
+        .set({'pet': _currentPet!.toJson()}, SetOptions(merge: true));
+  }
+
+  Future<void> _equipAccessory(String itemName) async {
+    if (_currentPet == null) return;
+
+    setState(() => _currentPet!.equippedAccessory = itemName);
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.studentID)
+        .set({'pet': _currentPet!.toJson()}, SetOptions(merge: true));
+  }
+
+  void _showAccessoryShop(ColorScheme cs) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cs.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "ACCESSORY SHOP",
+                style: GoogleFonts.orbitron(
+                  color: cs.primaryContainer,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...accessories.map((item) {
+                final bool owned = _currentPet!.ownedAccessories.contains(
+                  item['name'],
+                );
+                final bool equipped =
+                    _currentPet!.equippedAccessory == item['name'];
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: cs.outlineVariant, width: 1.2),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item['name'],
+                              style: GoogleFonts.outfit(
+                                color: cs.onSurface,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.monetization_on_rounded,
+                                  color: Color(0xFFFFB74D),
+                                  size: 13,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${item['price']} coins",
+                                  style: GoogleFonts.outfit(
+                                    color: cs.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          if (owned) {
+                            _equipAccessory(item['name']);
+                          } else {
+                            _buyAccessory(item['name'], item['price']);
+                          }
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: equipped
+                                ? cs.outline.withOpacity(0.2)
+                                : cs.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: owned
+                                  ? cs.primaryContainer.withOpacity(0.4)
+                                  : cs.outlineVariant,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Text(
+                            equipped ? "EQUIPPED" : (owned ? "EQUIP" : "BUY"),
+                            style: GoogleFonts.orbitron(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: equipped
+                                  ? cs.outline
+                                  : cs.primaryContainer,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Future<void> _simulateEarnEXP(StreakPet activePet) async {
-    activePet.completeTaskReward(expReward: 20, coinReward: 5);
-    await _firestoreService.savePetData(
-      uid: studentID,
-      petJsonMap: activePet.toJson(),
+  void _showPetHub(ColorScheme cs) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: cs.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "PET HUB",
+                      style: GoogleFonts.orbitron(
+                        color: cs.primaryContainer,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    Text(
+                      "LV. ${_currentPet!.currentLevel} • ${_currentPet!.rank}",
+                      style: GoogleFonts.orbitron(
+                        fontSize: 9,
+                        color: cs.outline,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Pet image + name centered
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          color: cs.surfaceBright,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: cs.primaryContainer.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Image.asset(
+                            _getPetAssetPath(_currentPet!.currentStage),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _currentPet!.name,
+                        style: GoogleFonts.orbitron(
+                          color: cs.onSurface,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(height: 1, color: cs.outlineVariant.withOpacity(0.4)),
+                const SizedBox(height: 16),
+
+                // Equipped accessory
+                Text(
+                  "EQUIPPED",
+                  style: GoogleFonts.orbitron(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: cs.outline,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceBright,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: cs.outlineVariant, width: 1.2),
+                  ),
+                  child: Text(
+                    _currentPet!.equippedAccessory.isEmpty
+                        ? "No accessory equipped"
+                        : _currentPet!.equippedAccessory,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      color: _currentPet!.equippedAccessory.isEmpty
+                          ? cs.onSurfaceVariant
+                          : cs.onSurface,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Owned accessories
+                Text(
+                  "OWNED ACCESSORIES",
+                  style: GoogleFonts.orbitron(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: cs.outline,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceBright,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: cs.outlineVariant, width: 1.2),
+                  ),
+                  child: _currentPet!.ownedAccessories.isEmpty
+                      ? Text(
+                          "No accessories owned yet",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            color: cs.onSurfaceVariant,
+                            fontSize: 13,
+                          ),
+                        )
+                      : Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _currentPet!.ownedAccessories.map((item) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cs.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: cs.primaryContainer.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                item,
+                                style: GoogleFonts.outfit(
+                                  color: cs.onSurface,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                ),
+                const SizedBox(height: 20),
+
+                // Open shop button
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showAccessoryShop(cs);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceBright,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: cs.primaryContainer.withOpacity(0.4),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 15,
+                          color: cs.primaryContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "OPEN ACCESSORY SHOP",
+                          style: GoogleFonts.orbitron(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: cs.primaryContainer,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -55,7 +439,7 @@ class PetDashboardWidget extends StatelessWidget {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
-          .doc(studentID)
+          .doc(widget.studentID)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -69,7 +453,9 @@ class PetDashboardWidget extends StatelessWidget {
             child: const SizedBox(
               height: 120,
               child: Center(
-                child: CircularProgressIndicator(color: purpleMain),
+                child: CircularProgressIndicator(
+                  color: PetDashboardWidget.purpleMain,
+                ),
               ),
             ),
           );
@@ -138,17 +524,8 @@ class PetDashboardWidget extends StatelessWidget {
           );
         }
 
-        final StreakPet pet = StreakPet.fromJson(
-          Map<String, dynamic>.from(userData['pet']),
-        );
-
-        if (currentCredits > pet.coins) {
-          pet.coins = currentCredits;
-          _firestoreService.savePetData(
-            uid: studentID,
-            petJsonMap: pet.toJson(),
-          );
-        }
+        _currentPet = StreakPet.fromJson(userData['pet']);
+        final pet = _currentPet!;
 
         return Container(
           padding: const EdgeInsets.all(20),
@@ -174,28 +551,28 @@ class PetDashboardWidget extends StatelessWidget {
                       letterSpacing: 2,
                     ),
                   ),
-                  // Container(
-                  //   padding: const EdgeInsets.symmetric(
-                  //     horizontal: 10,
-                  //     vertical: 5,
-                  //   ),
-                  //   decoration: BoxDecoration(
-                  //     color: cs.surfaceBright,
-                  //     borderRadius: BorderRadius.circular(10),
-                  //     border: Border.all(
-                  //       color: Colors.amber.withOpacity(0.4),
-                  //       width: 1.2,
-                  //     ),
-                  //   ),
-                  //   // child: Text(
-                  //   //   "🔥 ${pet.currentStreak}d streak",
-                  //   //   style: GoogleFonts.orbitron(
-                  //   //     color: Colors.amber.shade400,
-                  //   //     fontSize: 10,
-                  //   //     fontWeight: FontWeight.bold,
-                  //   //   ),
-                  //   // ),
-                  // ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceBright,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.amber.withOpacity(0.4),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Text(
+                      "🔥 ${pet.currentStreak}d streak",
+                      style: GoogleFonts.orbitron(
+                        color: Colors.amber.shade400,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -203,24 +580,27 @@ class PetDashboardWidget extends StatelessWidget {
               // ── Pet identity row ──
               Row(
                 children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: cs.surfaceBright,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: cs.primaryContainer.withOpacity(0.3),
-                        width: 1.5,
+                  GestureDetector(
+                    onTap: () => _showPetHub(cs),
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: cs.surfaceBright,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: cs.primaryContainer.withOpacity(0.3),
+                          width: 1.5,
+                        ),
                       ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Image.asset(
-                          _getPetAssetPath(pet.currentStage),
-                          fit: BoxFit.contain,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Image.asset(
+                            _getPetAssetPath(pet.currentStage),
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
                     ),
@@ -348,7 +728,7 @@ class PetDashboardWidget extends StatelessWidget {
               const SizedBox(height: 20),
 
               // ── Divider ──
-              Container(height: 1, color: cs.outlineVariant.withOpacity(0.4)),
+              Container(height: 1, color: cs.outline.withOpacity(0.4)),
               const SizedBox(height: 16),
 
               // ── Daily stats label ──
@@ -363,11 +743,11 @@ class PetDashboardWidget extends StatelessWidget {
               ),
               const SizedBox(height: 10),
 
-              // ── Stats chips — use surfaceBright so they stand out from parent ──
+              // ── Stats chips ──
               StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
-                    .doc(studentID)
+                    .doc(widget.studentID)
                     .collection('tasks')
                     .snapshots(),
                 builder: (context, taskSnap) {
@@ -409,9 +789,9 @@ class PetDashboardWidget extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // ── Simulate button ──
+              // ── Accessory shop button ──
               GestureDetector(
-                onTap: () => _simulateEarnEXP(pet),
+                onTap: () => _showAccessoryShop(cs),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 11),
@@ -427,17 +807,17 @@ class PetDashboardWidget extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.add_circle_outline_rounded,
+                        Icons.shopping_bag_outlined,
                         size: 15,
-                        color: cs.primaryContainer,
+                        color: cs.onPrimary,
                       ),
                       const SizedBox(width: 7),
                       Text(
-                        "SIMULATE HABIT  +20 EXP",
+                        "ACCESSORY SHOP",
                         style: GoogleFonts.orbitron(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: cs.primaryFixed,
+                          color: cs.onPrimary,
                           letterSpacing: 0.8,
                         ),
                       ),
@@ -463,9 +843,7 @@ class PetDashboardWidget extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
         decoration: BoxDecoration(
-          // surfaceBright instead of surfaceContainerLow — creates visible
-          // depth contrast against the parent card background
-          color: cs.surfaceContainerHigh,
+          color: cs.surfaceContainer,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withOpacity(0.3), width: 1.2),
         ),
