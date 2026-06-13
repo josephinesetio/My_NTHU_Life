@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/firestore_services.dart';
 
 // ─── Fixed semantic colors (not in ColorScheme) ───────────────────────────────
 const Color _goldAccent = Color(0xFFFFD700);
@@ -12,6 +13,7 @@ const Color _bronzeAccent = Color(0xFFFF8A65);
 
 class Party {
   String id, name, tag, creatorID, description;
+  String inviteCode;
   List<String> memberIDs;
   int totalWeeklyXP;
 
@@ -21,16 +23,18 @@ class Party {
     required this.tag,
     required this.creatorID,
     required this.memberIDs,
+    required this.inviteCode,
     this.totalWeeklyXP = 0,
     this.description = '',
   });
 
   factory Party.fromJson(Map<String, dynamic> j) => Party(
-    id: j['id'],
-    name: j['name'],
-    tag: j['tag'],
-    creatorID: j['creatorID'],
-    memberIDs: List<String>.from(j['memberIDs']),
+    id: j['id'] ?? '',
+    name: j['name'] ?? '',
+    tag: j['tag'] ?? '',
+    creatorID: j['creatorID'] ?? '',
+    memberIDs: List<String>.from(j['memberIDs'] ?? []),
+    inviteCode: j['inviteCode'] ?? '',
     totalWeeklyXP: j['totalWeeklyXP'] ?? 0,
     description: j['description'] ?? '',
   );
@@ -43,6 +47,7 @@ class Party {
     'memberIDs': memberIDs,
     'totalWeeklyXP': totalWeeklyXP,
     'description': description,
+    'inviteCode': inviteCode,
   };
 }
 
@@ -72,6 +77,8 @@ class _PartyPageState extends State<PartyPage>
   late TabController _tabController;
   Party? _myParty;
   bool _isLoading = true;
+
+  final FirestoreService _firestoreService = FirestoreService();
 
   final List<LeaderboardEntry> _globalLeaderboard = [
     LeaderboardEntry(
@@ -183,29 +190,47 @@ class _PartyPageState extends State<PartyPage>
   }
 
   // ── Storage ────────────────────────────────────────────────────────────────
-
+  // aku rubah jadi firestore
   Future<void> _loadParty() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('Party_${widget.studentID}');
+    final partyData = await _firestoreService.getUserParty(
+      widget.studentID,
+    );
+
+    print("========== PARTY DATA ==========");
+    print(partyData);
+    print("================================");
+
     setState(() {
-      _myParty = raw != null ? Party.fromJson(jsonDecode(raw)) : null;
+      _myParty =
+          partyData != null ? Party.fromJson(partyData) : null;
       _isLoading = false;
     });
   }
 
+  // aku jadiin firestore
   Future<void> _saveParty(Party party) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'Party_${widget.studentID}',
-      jsonEncode(party.toJson()),
-    );
-    setState(() => _myParty = party);
-  }
+    print("SAVE PARTY CALLED");
 
+    await _firestoreService.createParty(
+      partyId: party.id,
+      name: party.name,
+      tag: party.tag,
+      creatorID: party.creatorID,
+      description: party.description,
+    );
+
+    // reload party dari firestore
+    await _loadParty();
+  }
+  // aku ganti ke firestore.
   Future<void> _leaveParty() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('Party_${widget.studentID}');
-    setState(() => _myParty = null);
+    await _firestoreService.leaveParty(
+      studentID: widget.studentID,
+    );
+
+    setState(() {
+      _myParty = null;
+    });
   }
 
   // ── Dialogs ────────────────────────────────────────────────────────────────
@@ -272,6 +297,7 @@ class _PartyPageState extends State<PartyPage>
                 creatorID: widget.studentID,
                 memberIDs: [widget.studentID],
                 description: descCtrl.text.trim(),
+                inviteCode: '', // will be generated in Firestore service
               );
               _saveParty(party);
               Navigator.pop(ctx);
@@ -320,17 +346,33 @@ class _PartyPageState extends State<PartyPage>
             child: Text('Cancel', style: TextStyle(color: cs.onSurfaceVariant)),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: cs.surfaceContainerHigh, // #241E2E
-                  content: Text(
-                    'Party lookup coming soon!',
-                    style: GoogleFonts.outfit(color: cs.primaryContainer),
-                  ),
-                ),
+            onPressed: () async {
+              final code = codeCtrl.text.trim().toUpperCase();
+
+              if (code.isEmpty) return;
+
+              final success = await _firestoreService.joinParty(
+                inviteCode: code,
+                studentID: widget.studentID,
               );
+
+              Navigator.pop(ctx);
+
+              if (success) {
+                await _loadParty();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Joined party successfully!'),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Invalid code or party is full.'),
+                  ),
+                );
+              }
             },
             child: Text(
               'Join',
@@ -755,7 +797,7 @@ class _PartyPageState extends State<PartyPage>
                       SnackBar(
                         backgroundColor: cs.surfaceContainerHigh,
                         content: Text(
-                          'Invite code: ${party.id.substring(0, 8).toUpperCase()}',
+                          'Invite code: ${party.inviteCode}',
                           style: GoogleFonts.outfit(color: cs.primaryContainer),
                         ),
                       ),
