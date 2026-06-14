@@ -597,9 +597,28 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
                         borderRadius: BorderRadius.circular(30),
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: Image.asset(
-                            _getPetAssetPath(pet.currentStage),
-                            fit: BoxFit.contain,
+                          // pet image + equipped accessory overlay (main dashboard)
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Image.asset(
+                                _getPetAssetPath(pet.currentStage),
+                                fit: BoxFit.contain,
+                              ),
+
+                              if (pet.equippedAccessory.isNotEmpty)
+                                Positioned(
+                                  top: 0,
+                                  child: Image.asset(
+                                    _getAccessoryAsset(
+                                      pet.equippedAccessory,
+                                    ),
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -908,6 +927,25 @@ class _PetDashboardWidgetState extends State<PetDashboardWidget> {
         return 'assets/badge/diamond_badge.png';
       default:
         return 'assets/badge/bronze_badge.png';
+    }
+  }
+
+  String _getAccessoryAsset(String accessory) {
+    switch (accessory) {
+      case '👓 Cool Glasses':
+        return 'assets/accessories/eyeglasses.png';
+
+      case '🎀 Pink Ribbon':
+        return 'assets/accessories/ribbon.png';
+
+      case '🪄 Wizard Hat':
+        return 'assets/accessories/wizard-hat.png';
+
+      case '👑 Golden Crown':
+        return 'assets/accessories/crown.png';
+
+      default:
+        return '';
     }
   }
 
