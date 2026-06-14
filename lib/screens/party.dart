@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/firestore_services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 
 // ─── Fixed semantic colors (not in ColorScheme) ───────────────────────────────
 const Color _goldAccent = Color(0xFFFFD700);
@@ -12,6 +15,7 @@ const Color _bronzeAccent = Color(0xFFFF8A65);
 
 class Party {
   String id, name, tag, creatorID, description;
+  String inviteCode;
   List<String> memberIDs;
   int totalWeeklyXP;
 
@@ -21,16 +25,18 @@ class Party {
     required this.tag,
     required this.creatorID,
     required this.memberIDs,
+    required this.inviteCode,
     this.totalWeeklyXP = 0,
     this.description = '',
   });
 
   factory Party.fromJson(Map<String, dynamic> j) => Party(
-    id: j['id'],
-    name: j['name'],
-    tag: j['tag'],
-    creatorID: j['creatorID'],
-    memberIDs: List<String>.from(j['memberIDs']),
+    id: j['id'] ?? '',
+    name: j['name'] ?? '',
+    tag: j['tag'] ?? '',
+    creatorID: j['creatorID'] ?? '',
+    memberIDs: List<String>.from(j['memberIDs'] ?? []),
+    inviteCode: j['inviteCode'] ?? '',
     totalWeeklyXP: j['totalWeeklyXP'] ?? 0,
     description: j['description'] ?? '',
   );
@@ -43,6 +49,7 @@ class Party {
     'memberIDs': memberIDs,
     'totalWeeklyXP': totalWeeklyXP,
     'description': description,
+    'inviteCode': inviteCode,
   };
 }
 
@@ -73,6 +80,8 @@ class _PartyPageState extends State<PartyPage>
   Party? _myParty;
   bool _isLoading = true;
 
+  final FirestoreService _firestoreService = FirestoreService();
+  /*
   final List<LeaderboardEntry> _globalLeaderboard = [
     LeaderboardEntry(
       studentID: 'S001',
@@ -168,7 +177,7 @@ class _PartyPageState extends State<PartyPage>
       rank: 5,
     ),
   ];
-
+  */
   @override
   void initState() {
     super.initState();
@@ -183,29 +192,47 @@ class _PartyPageState extends State<PartyPage>
   }
 
   // ── Storage ────────────────────────────────────────────────────────────────
-
+  // aku rubah jadi firestore
   Future<void> _loadParty() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('Party_${widget.studentID}');
+    final partyData = await _firestoreService.getUserParty(
+      widget.studentID,
+    );
+
+    print("========== PARTY DATA ==========");
+    print(partyData);
+    print("================================");
+
     setState(() {
-      _myParty = raw != null ? Party.fromJson(jsonDecode(raw)) : null;
+      _myParty =
+          partyData != null ? Party.fromJson(partyData) : null;
       _isLoading = false;
     });
   }
 
+  // aku jadiin firestore
   Future<void> _saveParty(Party party) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'Party_${widget.studentID}',
-      jsonEncode(party.toJson()),
-    );
-    setState(() => _myParty = party);
-  }
+    print("SAVE PARTY CALLED");
 
+    await _firestoreService.createParty(
+      partyId: party.id,
+      name: party.name,
+      tag: party.tag,
+      creatorID: party.creatorID,
+      description: party.description,
+    );
+
+    // reload party dari firestore
+    await _loadParty();
+  }
+  // aku ganti ke firestore.
   Future<void> _leaveParty() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('Party_${widget.studentID}');
-    setState(() => _myParty = null);
+    await _firestoreService.leaveParty(
+      studentID: widget.studentID,
+    );
+
+    setState(() {
+      _myParty = null;
+    });
   }
 
   // ── Dialogs ────────────────────────────────────────────────────────────────
@@ -272,6 +299,7 @@ class _PartyPageState extends State<PartyPage>
                 creatorID: widget.studentID,
                 memberIDs: [widget.studentID],
                 description: descCtrl.text.trim(),
+                inviteCode: '', // will be generated in Firestore service
               );
               _saveParty(party);
               Navigator.pop(ctx);
@@ -320,17 +348,33 @@ class _PartyPageState extends State<PartyPage>
             child: Text('Cancel', style: TextStyle(color: cs.onSurfaceVariant)),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: cs.surfaceContainerHigh, // #241E2E
-                  content: Text(
-                    'Party lookup coming soon!',
-                    style: GoogleFonts.outfit(color: cs.primaryContainer),
-                  ),
-                ),
+            onPressed: () async {
+              final code = codeCtrl.text.trim().toUpperCase();
+
+              if (code.isEmpty) return;
+
+              final success = await _firestoreService.joinParty(
+                inviteCode: code,
+                studentID: widget.studentID,
               );
+
+              Navigator.pop(ctx);
+
+              if (success) {
+                await _loadParty();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Joined party successfully!'),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Invalid code or party is full.'),
+                  ),
+                );
+              }
             },
             child: Text(
               'Join',
@@ -387,6 +431,103 @@ class _PartyPageState extends State<PartyPage>
           ),
         ],
       ),
+    );
+  }
+
+  void _showEditPartyDialog(
+    ColorScheme cs,
+    Party party,
+  ) {
+    final nameController =
+        TextEditingController(text: party.name);
+
+    final descController =
+        TextEditingController(text: party.description);
+
+    final tagController =
+        TextEditingController(text: party.tag);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: cs.surfaceContainerLow,
+          title: Text(
+            "Edit Party",
+            style: GoogleFonts.orbitron(
+              color: cs.primaryContainer,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: "Party Name",
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: tagController,
+                maxLength: 5,
+                textCapitalization:
+                    TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: "Party Tag",
+                  counterText: "",
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: descController,
+                decoration: const InputDecoration(
+                  labelText: "Description",
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (tagController.text.trim().isEmpty) {
+                  return;
+                }
+
+                await FirebaseFirestore.instance
+                    .collection('parties')
+                    .doc(party.id)
+                    .update({
+                  'name': nameController.text.trim(),
+                  'tag': tagController.text
+                      .trim()
+                      .toUpperCase(),
+                  'description':
+                      descController.text.trim(),
+                });
+
+                if (mounted) {
+                  Navigator.pop(context);
+                }
+
+                setState(() {});
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -484,8 +625,8 @@ class _PartyPageState extends State<PartyPage>
         controller: _tabController,
         children: [
           _buildMyPartyTab(cs),
-          _buildLeaderboardTab(cs, _globalLeaderboard, isSolo: true),
-          _buildLeaderboardTab(cs, _partyLeaderboard, isSolo: false),
+          _buildSoloLeaderboard(cs),
+          _buildPartyLeaderboard(cs),
         ],
       ),
       floatingActionButton: AnimatedBuilder(
@@ -611,189 +752,339 @@ class _PartyPageState extends State<PartyPage>
 
   Widget _buildPartyDetailScreen(ColorScheme cs, Party party) {
     final bool isLeader = party.creatorID == widget.studentID;
-    final List<Map<String, dynamic>> members = List.generate(
-      party.memberIDs.length,
-      (i) => {
-        'id': party.memberIDs[i],
-        'name': i == 0 ? 'You' : 'Member ${i + 1}',
-        'weeklyXP': (i == 0 ? 420 : (300 - i * 40)).clamp(0, 9999),
-        'isLeader': party.memberIDs[i] == party.creatorID,
-      },
-    );
-    members.sort(
-      (a, b) => (b['weeklyXP'] as int).compareTo(a['weeklyXP'] as int),
-    );
-    final int totalXP = members.fold(
-      0,
-      (sum, m) => sum + (m['weeklyXP'] as int),
-    );
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: cs.outlineVariant, width: 1.5),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .where(
+            FieldPath.documentId,
+            whereIn: party.memberIDs,
+          )
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        final members = snapshot.data!.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+
+          return {
+            'id': doc.id,
+            'name': doc.id,
+            'weeklyXP': data['weeklyXP'] ?? 0,
+            'isLeader': doc.id == party.creatorID,
+          };
+        }).toList();
+
+        members.sort(
+          (a, b) => (b['weeklyXP'] as int)
+              .compareTo(a['weeklyXP'] as int),
+        );
+
+        /*final int totalXP = members.fold(
+          0,
+          (sum, m) => sum + (m['weeklyXP'] as int),
+        );*/
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 20,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: cs.outlineVariant,
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceBright, // #3C096C selected
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: cs.outline), // #7B2CBF
-                      ),
-                      child: Text(
-                        '[${party.tag}]',
-                        style: GoogleFonts.orbitron(
-                          color: cs.primaryContainer,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceBright,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: cs.outline,
+                            ),
+                          ),
+                          child: Text(
+                            '[${party.tag}]',
+                            style: GoogleFonts.orbitron(
+                              color: cs.primaryContainer,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            party.name,
+                            style: GoogleFonts.orbitron(
+                              color: cs.onSurface,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isLeader)
+                          IconButton(
+                            icon: Icon(
+                              Icons.edit_outlined,
+                              color: cs.onSurfaceVariant,
+                              size: 18,
+                            ),
+                            onPressed: () {
+                              _showEditPartyDialog(cs, party);
+                            },
+                          ),
+                      ],
+                    ),
+
+                    if (party.description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        party.description,
+                        style: GoogleFonts.outfit(
+                          color: cs.onSurfaceVariant,
+                          fontSize: 12,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        party.name,
-                        style: GoogleFonts.orbitron(
-                          color: cs.onSurface,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        _statChip(
+                          cs,
+                          Icons.bolt,
+                          '${party.totalWeeklyXP} XP',
+                          'This Week',
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        const SizedBox(width: 12),
+                        _statChip(
+                          cs,
+                          Icons.group,
+                          '${party.memberIDs.length}/6',
+                          'Members',
+                        ),
+                      ],
                     ),
-                    if (isLeader)
-                      Icon(
-                        Icons.edit_outlined,
-                        color: cs.onSurfaceVariant,
-                        size: 18,
-                      ),
                   ],
                 ),
-                if (party.description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    party.description,
-                    style: GoogleFonts.outfit(
-                      color: cs.onSurfaceVariant,
-                      fontSize: 12,
+              ),
+
+              const SizedBox(height: 20),
+
+              _sectionLabel(
+                cs,
+                'PARTY MEMBERS • THIS WEEK',
+              ),
+
+              const SizedBox(height: 12),
+
+              ...members.asMap().entries.map((e) {
+                final m = e.value;
+
+                return _memberCard(
+                  cs,
+                  rank: e.key + 1,
+                  name: m['name'],
+                  xp: m['weeklyXP'],
+                  isLeader: m['isLeader'],
+                  isMe: m['id'] == widget.studentID,
+                );
+              }),
+
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: cs.outline),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.share_outlined,
+                        color: cs.primaryContainer,
+                        size: 18,
+                      ),
+                      label: Text(
+                        'INVITE',
+                        style: GoogleFonts.orbitron(
+                          color: cs.primaryContainer,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(
+                            text: party.inviteCode,
+                          ),
+                        );
+
+                        if (!mounted) return;
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: cs.surfaceContainerHigh,
+                            content: Text(
+                              'Invite Code ${party.inviteCode} copied!',
+                              style: GoogleFonts.outfit(
+                                color: cs.primaryContainer,
+                              ),
+                            ),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: cs.error),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.logout_rounded,
+                        color: cs.error,
+                        size: 18,
+                      ),
+                      label: Text(
+                        'LEAVE',
+                        style: GoogleFonts.orbitron(
+                          color: cs.error,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: _showLeaveConfirmDialog,
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _statChip(cs, Icons.bolt, '$totalXP XP', 'This Week'),
-                    const SizedBox(width: 12),
-                    _statChip(
-                      cs,
-                      Icons.group,
-                      '${party.memberIDs.length}/6',
-                      'Members',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          _sectionLabel(cs, 'PARTY MEMBERS • THIS WEEK'),
-          const SizedBox(height: 12),
-          ...members.asMap().entries.map((e) {
-            final m = e.value;
-            return _memberCard(
-              cs,
-              rank: e.key + 1,
-              name: m['name'],
-              xp: m['weeklyXP'],
-              isLeader: m['isLeader'],
-              isMe: m['id'] == widget.studentID,
-            );
-          }),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: cs.outline),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: Icon(
-                    Icons.share_outlined,
-                    color: cs.primaryContainer,
-                    size: 18,
-                  ),
-                  label: Text(
-                    'INVITE',
-                    style: GoogleFonts.orbitron(
-                      color: cs.primaryContainer,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: cs.surfaceContainerHigh,
-                        content: Text(
-                          'Invite code: ${party.id.substring(0, 8).toUpperCase()}',
-                          style: GoogleFonts.outfit(color: cs.primaryContainer),
-                        ),
-                      ),
-                    );
-                  },
-                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: cs.error),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: Icon(Icons.logout_rounded, color: cs.error, size: 18),
-                  label: Text(
-                    'LEAVE',
-                    style: GoogleFonts.orbitron(
-                      color: cs.error,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: _showLeaveConfirmDialog,
-                ),
-              ),
+
+              const SizedBox(height: 80),
             ],
           ),
-          const SizedBox(height: 80),
-        ],
-      ),
+        );
+      },
     );
   }
 
   // ── Tab: Leaderboard ───────────────────────────────────────────────────────
+  Widget _buildSoloLeaderboard(ColorScheme cs) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('weeklyXP', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(
+            child: CircularProgressIndicator(
+              color: cs.primaryContainer,
+            ),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+
+        final entries = docs.asMap().entries.map((entry) {
+          final data = entry.value.data() as Map<String, dynamic>;
+
+          return LeaderboardEntry(
+            studentID: entry.value.id,
+            displayName: entry.value.id,
+            weeklyXP: data['weeklyXP'] ?? 0,
+            rank: entry.key + 1,
+          );
+        }).toList();
+
+        return _buildLeaderboardTab(
+          cs,
+          entries,
+          isSolo: true,
+        );
+      },
+    );
+  }
+  
+  Widget _buildPartyLeaderboard(ColorScheme cs) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('parties')
+          .orderBy('totalWeeklyXP', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(
+            child: CircularProgressIndicator(
+              color: cs.primaryContainer,
+            ),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+
+        final entries = docs.asMap().entries.map((entry) {
+          final data = entry.value.data() as Map<String, dynamic>;
+
+          return LeaderboardEntry(
+            studentID: entry.value.id,
+            displayName: data['name'] ?? 'Unknown Party',
+            weeklyXP: data['totalWeeklyXP'] ?? 0,
+            rank: entry.key + 1,
+          );
+        }).toList();
+
+        return _buildLeaderboardTab(
+          cs,
+          entries,
+          isSolo: false,
+        );
+      },
+    );
+  }
 
   Widget _buildLeaderboardTab(
     ColorScheme cs,

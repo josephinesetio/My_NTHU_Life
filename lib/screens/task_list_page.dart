@@ -951,6 +951,8 @@ class _TaskListPageState extends State<TaskListPage> {
                                                   : cs.primary,
                                             ),
                                             onPressed: () async {
+                                              final int expGained = task['exp'] ?? 0;
+
                                               if (repeatType == 'None') {
                                                 await FirebaseFirestore.instance
                                                     .collection('users')
@@ -958,8 +960,33 @@ class _TaskListPageState extends State<TaskListPage> {
                                                     .collection('tasks')
                                                     .doc(doc.id)
                                                     .update({
-                                                      'isDone': !isDone,
+                                                  'isDone': !isDone,
+                                                });
+
+                                                if (!isDone) {
+                                                  await FirebaseFirestore.instance
+                                                      .collection('users')
+                                                      .doc(widget.studentID)
+                                                      .set({
+                                                    'weeklyXP': FieldValue.increment(expGained),
+                                                  }, SetOptions(merge: true));
+
+                                                  final partyQuery = await FirebaseFirestore.instance
+                                                      .collection('parties')
+                                                      .where(
+                                                        'memberIDs',
+                                                        arrayContains: widget.studentID,
+                                                      )
+                                                      .limit(1)
+                                                      .get();
+
+                                                  if (partyQuery.docs.isNotEmpty) {
+                                                    await partyQuery.docs.first.reference.update({
+                                                      'totalWeeklyXP':
+                                                          FieldValue.increment(expGained),
                                                     });
+                                                  }
+                                                }
                                               } else {
                                                 await FirebaseFirestore.instance
                                                     .collection('users')
@@ -967,14 +994,14 @@ class _TaskListPageState extends State<TaskListPage> {
                                                     .collection('tasks')
                                                     .doc(doc.id)
                                                     .update({
-                                                      'completedDates': isDone
-                                                          ? FieldValue.arrayRemove([
-                                                              selectedTargetKey,
-                                                            ])
-                                                          : FieldValue.arrayUnion([
-                                                              selectedTargetKey,
-                                                            ]),
-                                                    });
+                                                  'completedDates': isDone
+                                                      ? FieldValue.arrayRemove([
+                                                          selectedTargetKey,
+                                                        ])
+                                                      : FieldValue.arrayUnion([
+                                                          selectedTargetKey,
+                                                        ]),
+                                                });
                                               }
                                             },
                                           ),
