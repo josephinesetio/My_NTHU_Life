@@ -8,7 +8,7 @@ class AIService {
     apiKey: dotenv.env['GEMINI_API_KEY']!,
   );
   
-  static Future<Map<String, dynamic>> generateRoadmap(String goal, {Map<String, dynamic>? aiConfig}) async {
+  static Future<Map<String, dynamic>> generateRoadmap(String goal) async {
     final apiKey = dotenv.env['GEMINI_API_KEY']!;
 
     final model = GenerativeModel(
@@ -16,49 +16,33 @@ class AIService {
       apiKey: apiKey,
     );
 
-    String configPrompt = "";
-    if (aiConfig != null) {
-      configPrompt = """
-  User Preferences:
-  - Study Intensity: ${aiConfig['intensity'] ?? 'Balanced'}
-  - Preferred Study Style: ${aiConfig['studyStyle'] ?? 'Practical'}
-  - General Study Goal: ${aiConfig['generalGoal'] ?? 'N/A'}
-  - Course Priorities: ${aiConfig['coursePriorities']?.toString() ?? 'N/A'}
-
-  Please tailor your recommendations to match these preferences. 
-  If intensity is 'Hardcore', suggest more advanced or longer videos. 
-  If study style is 'Visual', prioritize videos with high visual content or animations.
-  """;
-    }
-
     final prompt = """
-  $configPrompt
+Recommend 3 educational Youtube videos about:
+$goal
 
-  Recommend 3 educational Youtube videos about:
-  $goal
+You MUST return ONLY valid JSON.
 
-  You MUST return ONLY valid JSON.
+Each video MUST include a REAL YouTube URL.
 
-  Rules:
-  - Each video MUST include a REAL YouTube URL.
-  - If you are not sure about URL, construct it like: https://www.youtube.com/watch?v=SEARCHABLE_VIDEO_ID
-  - DO NOT OMIT url field.
-  
-  Format:
-  {
-    "videos" : [
-      {
-        "title": "...",
-        "url": "https://www.youtube.com/watch?v=xxxxx",
-        "thumbnail": "https://img.youtube.com/vi/xxxxx/hqdefault.jpg",
-        "channel": "...",
-        "explanation": "...",
-        "xp": 10,
-        "youtubeKeywords": ["...", "..."]
-      }
-    ]
-  }
-  """;
+If you are not sure about URL, construct it like:
+https://www.youtube.com/watch?v=SEARCHABLE_VIDEO_ID
+
+DO NOT OMIT url field.
+Format:
+{
+  "videos" : [
+    {
+      "title": "...",
+      "url": "https://www.youtube.com/watch?v=xxxxx",
+      "thumbnail": "https://img.youtube.com/vi/xxxxx/hqdefault.jpg"
+      "channel": "...",
+      "explanation": "...",
+      "xp": 10,
+      "youtubeKeywords": ["...", "..."]
+    }
+  ]
+}
+""";
 
     final response = await model.generateContent([
       Content.text(prompt),
@@ -132,9 +116,33 @@ Rules:
   print(text);
 
   return jsonDecode(text);
-  }
+}
+  static Future<Map<String, dynamic>> explainTopic(String topic) async {
+  final prompt = """
+Explain this topic in a structured way:
 
-  static Future<Map<String, dynamic>> generateDailyPlan({
+$topic
+
+Format your answer like this:
+- Simple intuition
+- Core concept
+- Step-by-step explanation
+- Example
+- Common mistakes
+- Summary
+
+Keep it clear and easy to understand.
+""";
+
+  final response = await _model.generateContent([
+    Content.text(prompt),
+  ]);
+
+  return {
+    "explanation": response.text ?? "No explanation"
+  };
+}
+static Future<Map<String, dynamic>> generateDailyPlan({
     required String studentID,
     required List<Map<String, dynamic>> existingTasks,
     required Map<String, dynamic>? aiConfig,
@@ -178,4 +186,5 @@ Rules:
 
     return jsonDecode(text);
   }
-  }
+
+}
