@@ -454,4 +454,20 @@ class FirestoreService {
       print("Delete Saved Video Error: $e");
     }
   }
+
+  Stream<int> getUserRankStream(String uid) {
+    return _firestore
+        .collection('users')
+        .orderBy('weeklyXP', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      final docs = snapshot.docs;
+      for (int i = 0; i < docs.length; i++) {
+        if (docs[i].id == uid) {
+          return i + 1;
+        }
+      }
+      return -1;
+    });
+  }
 }
