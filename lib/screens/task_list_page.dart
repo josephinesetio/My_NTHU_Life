@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_nthu_life/pet_files/pet_provider.dart';
+import 'package:my_nthu_life/services/ai_service.dart';
 import 'package:provider/provider.dart';
 
 class TaskListPage extends StatefulWidget {
@@ -65,21 +66,25 @@ class _TaskListPageState extends State<TaskListPage> {
 
   Future<void> _fetchCourseList() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.studentID)
-          .collection('courses')
           .get();
 
-      final courses = snapshot.docs
-          .map((doc) => doc.data()['name'] as String? ?? 'Unknown Course')
-          .toSet()
-          .toList();
+      if (doc.exists && doc.data()?['courses'] != null) {
+        final coursesMap = Map<String, dynamic>.from(doc.data()!['courses']);
+        final courses = coursesMap.values
+            .map((c) => c['courseName'] as String? ?? 'Unknown Course')
+            .toSet()
+            .toList();
 
-      setState(() {
-        _courseNames = courses;
-        _isLoadingCourses = false;
-      });
+        setState(() {
+          _courseNames = courses;
+          _isLoadingCourses = false;
+        });
+      } else {
+        setState(() => _isLoadingCourses = false);
+      }
     } catch (e) {
       setState(() => _isLoadingCourses = false);
     }
@@ -146,6 +151,65 @@ class _TaskListPageState extends State<TaskListPage> {
     }
   }
 
+  Future<bool> _showDeleteConfirmationDialog(ColorScheme cs) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: cs.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: cs.surfaceBright,
+                width: 1.5,
+              ),
+            ),
+            title: Text(
+              'DELETE QUEST?',
+              style: GoogleFonts.orbitron(
+                color: cs.error,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            content: Text(
+              'This quest will be permanently removed.',
+              style: GoogleFonts.outfit(
+                color: cs.onSurfaceVariant,
+                fontSize: 13,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  ctx,
+                  false,
+                ),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  ctx,
+                  true,
+                ),
+                child: Text(
+                  'Delete',
+                  style: GoogleFonts.orbitron(
+                    color: cs.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   void _showAddTaskDialog(ColorScheme cs) {
     if (_selectedDay == null) return;
     String taskTitle = "";
@@ -160,6 +224,8 @@ class _TaskListPageState extends State<TaskListPage> {
     // New recurrence variables
     String selectedRepeat = "None"; // None, Daily, Weekly
     List<int> selectedWeekdays = []; // 1=Mon, ..., 7=Sun
+    List<Map<String, dynamic>> subtasks = [];
+    bool isGenerating = false;
 
     showDialog(
       context: context,
@@ -352,6 +418,112 @@ class _TaskListPageState extends State<TaskListPage> {
                         }),
                       ),
                     ],
+                    const SizedBox(height: 20),
+                    if (isGenerating)
+                      CircularProgressIndicator(color: cs.primaryContainer)
+                    else
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          if (taskTitle.trim().isEmpty) return;
+                          setDialogState(() => isGenerating = true);
+                          try {
+                            final userDoc = await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.studentID)
+                                .get();
+                            final coursesMap = Map<String, dynamic>.from(
+                              userDoc.data()?['courses'] ?? {},
+                            );
+                            List<Map<String, dynamic>> grades = [];
+                            coursesMap.forEach((key, value) {
+                              grades.add({
+                                'courseName': value['courseName'] ?? 'Unknown',
+                                'grade': value['grade'] ?? 'N/A',
+                              });
+                            });
+
+                            final result = await AIService.generateSubtasks(
+                              taskTitle: taskTitle,
+                              courseName: customCourseController.text,
+                              studentGrades: grades,
+                            );
+
+                            final generated = List<Map<String, dynamic>>.from(
+                              result['subtasks'] ?? [],
+                            );
+
+                            setDialogState(() {
+                              subtasks = generated;
+                              isGenerating = false;
+                              if (generated.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Failed to generate subtasks. Please check your API key in .env and restart the app.",
+                                    ),
+                                  ),
+                                );
+                              }
+                            });
+                          } catch (e) {
+                            setDialogState(() => isGenerating = false);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: cs.outline,
+                          foregroundColor: cs.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.auto_awesome, size: 16),
+                        label: Text(
+                          "AI DIVIDE",
+                          style: GoogleFonts.orbitron(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    if (subtasks.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "AI Generated Subtasks:",
+                          style: GoogleFonts.outfit(
+                            color: cs.primaryContainer,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...subtasks.map(
+                        (st) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.subdirectory_arrow_right,
+                                size: 14,
+                                color: cs.primaryContainer,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "${st['title']} (${st['estimated_minutes']}m)",
+                                  style: GoogleFonts.outfit(
+                                    color: cs.onSurface,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -377,6 +549,14 @@ class _TaskListPageState extends State<TaskListPage> {
                         selectedCategory,
                       );
 
+                      final subtasksToSave = subtasks.map((st) {
+                        return {
+                          ...st,
+                          'isDone': false,
+                          'completedDates': [],
+                        };
+                      }).toList();
+
                       await FirebaseFirestore.instance
                           .collection('users')
                           .doc(widget.studentID)
@@ -393,8 +573,8 @@ class _TaskListPageState extends State<TaskListPage> {
                             'exp': computedExp,
                             'coins': computedCoins,
                             'isDone': false,
-                            'completedDates':
-                                [], // Track completion for recurring tasks
+                            'completedDates': [],
+                            'subtasks': subtasksToSave,
                             'createdAt': FieldValue.serverTimestamp(),
                           });
                     }
@@ -830,71 +1010,7 @@ class _TaskListPageState extends State<TaskListPage> {
                                           color: Colors.white,
                                         ),
                                       ),
-                                      confirmDismiss: (_) async {
-                                        return await showDialog<bool>(
-                                              context: context,
-                                              builder: (ctx) => AlertDialog(
-                                                backgroundColor:
-                                                    cs.surfaceContainerLow,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                  side: BorderSide(
-                                                    color: cs.surfaceBright,
-                                                    width: 1.5,
-                                                  ),
-                                                ),
-                                                title: Text(
-                                                  'DELETE QUEST?',
-                                                  style: GoogleFonts.orbitron(
-                                                    color: cs.error,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                content: Text(
-                                                  'This quest will be permanently removed.',
-                                                  style: GoogleFonts.outfit(
-                                                    color: cs.onSurfaceVariant,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          ctx,
-                                                          false,
-                                                        ),
-                                                    child: Text(
-                                                      'Cancel',
-                                                      style: TextStyle(
-                                                        color:
-                                                            cs.onSurfaceVariant,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          ctx,
-                                                          true,
-                                                        ),
-                                                    child: Text(
-                                                      'Delete',
-                                                      style:
-                                                          GoogleFonts.orbitron(
-                                                            color: cs.error,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ) ??
-                                            false;
-                                      },
+                                      confirmDismiss: (_) => _showDeleteConfirmationDialog(cs),
                                       onDismissed: (_) async {
                                         await FirebaseFirestore.instance
                                             .collection('users')
@@ -917,94 +1033,344 @@ class _TaskListPageState extends State<TaskListPage> {
                                                 .withOpacity(0.5),
                                           ),
                                         ),
-                                        child: ListTile(
-                                          leading: Container(
-                                            width: 4,
-                                            height: 26,
-                                            color: catColor,
-                                          ),
-                                          title: Text(
-                                            task['title'] ?? '',
-                                            style: GoogleFonts.outfit(
-                                              color: cs.onSurface,
-                                              fontSize: 15,
-                                              decoration: isDone
-                                                  ? TextDecoration.lineThrough
-                                                  : null,
-                                              decorationColor: Colors.grey,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            "${courseName.toUpperCase()} • $category${repeatType != 'None' ? ' ($repeatType)' : ''}",
-                                            style: GoogleFonts.outfit(
-                                              color: cs.onSurfaceVariant,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                          trailing: IconButton(
-                                            icon: Icon(
-                                              isDone
-                                                  ? Icons.check_circle
-                                                  : Icons.radio_button_off,
-                                              color: isDone
-                                                  ? Colors.greenAccent
-                                                  : cs.primary,
-                                            ),
-                                            onPressed: () async {
-                                              final int expGained = task['exp'] ?? 0;
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ListTile(
+                                              leading: Container(
+                                                width: 4,
+                                                height: 26,
+                                                color: catColor,
+                                              ),
+                                              title: Text(
+                                                task['title'] ?? '',
+                                                style: GoogleFonts.outfit(
+                                                  color: cs.onSurface,
+                                                  fontSize: 15,
+                                                  decoration: isDone
+                                                      ? TextDecoration.lineThrough
+                                                      : null,
+                                                  decorationColor: Colors.grey,
+                                                ),
+                                              ),
+                                              subtitle: Text(
+                                                "${courseName.toUpperCase()} • $category${repeatType != 'None' ? ' ($repeatType)' : ''}",
+                                                style: GoogleFonts.outfit(
+                                                  color: cs.onSurfaceVariant,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                              trailing: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      isDone
+                                                          ? Icons.check_circle
+                                                          : Icons.radio_button_off,
+                                                      color: isDone
+                                                          ? Colors.greenAccent
+                                                          : cs.primary,
+                                                    ),
+                                                    onPressed: () async {
+                                                      final int expGained = task['exp'] ?? 0;
 
-                                              if (repeatType == 'None') {
-                                                await FirebaseFirestore.instance
-                                                    .collection('users')
-                                                    .doc(widget.studentID)
-                                                    .collection('tasks')
-                                                    .doc(doc.id)
-                                                    .update({
-                                                  'isDone': !isDone,
-                                                });
+                                                      if (repeatType == 'None') {
+                                                        await FirebaseFirestore.instance
+                                                            .collection('users')
+                                                            .doc(widget.studentID)
+                                                            .collection('tasks')
+                                                            .doc(doc.id)
+                                                            .update({
+                                                          'isDone': !isDone,
+                                                        });
 
-                                                if (!isDone) {
-                                                  await FirebaseFirestore.instance
-                                                      .collection('users')
-                                                      .doc(widget.studentID)
-                                                      .set({
-                                                    'weeklyXP': FieldValue.increment(expGained),
-                                                  }, SetOptions(merge: true));
+                                                        if (!isDone) {
+                                                          await FirebaseFirestore.instance
+                                                              .collection('users')
+                                                              .doc(widget.studentID)
+                                                              .set({
+                                                            'weeklyXP': FieldValue.increment(expGained),
+                                                          }, SetOptions(merge: true));
 
-                                                  final partyQuery = await FirebaseFirestore.instance
-                                                      .collection('parties')
-                                                      .where(
-                                                        'memberIDs',
-                                                        arrayContains: widget.studentID,
+                                                          final partyQuery = await FirebaseFirestore.instance
+                                                              .collection('parties')
+                                                              .where(
+                                                                'memberIDs',
+                                                                arrayContains: widget.studentID,
+                                                              )
+                                                              .limit(1)
+                                                              .get();
+
+                                                          if (partyQuery.docs.isNotEmpty) {
+                                                            await partyQuery.docs.first.reference.update({
+                                                              'totalWeeklyXP':
+                                                                  FieldValue.increment(expGained),
+                                                            });
+                                                          }
+                                                        }
+                                                      } else {
+                                                        await FirebaseFirestore.instance
+                                                            .collection('users')
+                                                            .doc(widget.studentID)
+                                                            .collection('tasks')
+                                                            .doc(doc.id)
+                                                            .update({
+                                                          'completedDates': isDone
+                                                              ? FieldValue.arrayRemove([
+                                                                  selectedTargetKey,
+                                                                ])
+                                                              : FieldValue.arrayUnion([
+                                                                  selectedTargetKey,
+                                                                ]),
+                                                        });
+                                                      }
+                                                    },
+                                                  ),
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.delete_outline,
+                                                      color: cs.error.withOpacity(0.7),
+                                                      size: 20,
+                                                    ),
+                                                    onPressed: () async {
+                                                      final confirmed = await _showDeleteConfirmationDialog(cs);
+                                                      if (confirmed) {
+                                                        await FirebaseFirestore.instance
+                                                            .collection('users')
+                                                            .doc(widget.studentID)
+                                                            .collection('tasks')
+                                                            .doc(doc.id)
+                                                            .delete();
+                                                      }
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            if (task['subtasks'] != null &&
+                                                (task['subtasks'] as List)
+                                                    .isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  left: 20.0,
+                                                  right: 12,
+                                                  bottom: 12,
+                                                ),
+                                                child: Column(
+                                                  children: (task['subtasks']
+                                                          as List)
+                                                      .asMap()
+                                                      .entries
+                                                      .map(
+                                                        (entry) {
+                                                          int stIndex = entry.key;
+                                                          var st = entry.value;
+
+                                                          final stRepeatType =
+                                                              repeatType;
+                                                          final stCompletedDates =
+                                                              List<String>.from(
+                                                            st['completedDates'] ??
+                                                                [],
+                                                          );
+                                                          final bool stIsDone =
+                                                              stRepeatType ==
+                                                                      'None'
+                                                                  ? (st['isDone'] ??
+                                                                      false)
+                                                                  : stCompletedDates
+                                                                      .contains(
+                                                                    selectedTargetKey,
+                                                                  );
+
+                                                          return Container(
+                                                            margin:
+                                                                const EdgeInsets
+                                                                    .only(
+                                                              top: 4,
+                                                            ),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: cs.surface
+                                                                  .withOpacity(
+                                                                0.3,
+                                                              ),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                10,
+                                                              ),
+                                                            ),
+                                                            child: ListTile(
+                                                              dense: true,
+                                                              visualDensity:
+                                                                  VisualDensity
+                                                                      .compact,
+                                                              leading: Icon(
+                                                                stIsDone
+                                                                    ? Icons
+                                                                        .check_box
+                                                                    : Icons
+                                                                        .check_box_outline_blank,
+                                                                size: 18,
+                                                                color: stIsDone
+                                                                    ? Colors
+                                                                        .greenAccent
+                                                                    : cs.primaryContainer,
+                                                              ),
+                                                              title: Text(
+                                                                "${st['title']} (${st['estimated_minutes']}m)",
+                                                                style: GoogleFonts
+                                                                    .outfit(
+                                                                  color: stIsDone
+                                                                      ? cs.onSurfaceVariant
+                                                                          .withOpacity(
+                                                                        0.5,
+                                                                      )
+                                                                      : cs.onSurface,
+                                                                  fontSize: 12,
+                                                                  decoration:
+                                                                      stIsDone
+                                                                          ? TextDecoration
+                                                                              .lineThrough
+                                                                          : null,
+                                                                ),
+                                                              ),
+                                                              onTap: () async {
+                                                                final bool
+                                                                    newVal =
+                                                                    !stIsDone;
+                                                                List<dynamic>
+                                                                    currentSubtasks =
+                                                                    List.from(
+                                                                  task['subtasks'],
+                                                                );
+                                                                Map<String, dynamic>
+                                                                    targetSt =
+                                                                    Map<String, dynamic>.from(
+                                                                  currentSubtasks[stIndex],
+                                                                );
+
+                                                                if (stRepeatType ==
+                                                                    'None') {
+                                                                  targetSt['isDone'] =
+                                                                      newVal;
+                                                                } else {
+                                                                  List<String>
+                                                                      dates =
+                                                                      List<String>.from(
+                                                                    targetSt['completedDates'] ??
+                                                                        [],
+                                                                  );
+                                                                  if (newVal) {
+                                                                    if (!dates.contains(
+                                                                      selectedTargetKey,
+                                                                    )) {
+                                                                      dates.add(
+                                                                        selectedTargetKey,
+                                                                      );
+                                                                    }
+                                                                  } else {
+                                                                    dates.remove(
+                                                                      selectedTargetKey,
+                                                                    );
+                                                                  }
+                                                                  targetSt['completedDates'] =
+                                                                      dates;
+                                                                }
+
+                                                                currentSubtasks[
+                                                                        stIndex] =
+                                                                    targetSt;
+
+                                                                await FirebaseFirestore
+                                                                    .instance
+                                                                    .collection(
+                                                                      'users',
+                                                                    )
+                                                                    .doc(
+                                                                      widget.studentID,
+                                                                    )
+                                                                    .collection(
+                                                                      'tasks',
+                                                                    )
+                                                                    .doc(doc.id)
+                                                                    .update({
+                                                                  'subtasks':
+                                                                      currentSubtasks,
+                                                                });
+
+                                                                if (newVal &&
+                                                                    mounted) {
+                                                                  Provider.of<PetProvider>(
+                                                                    context,
+                                                                    listen: false,
+                                                                  ).awardGrowthPoints(
+                                                                    studentID:
+                                                                        widget.studentID,
+                                                                    exp: 2,
+                                                                    coins: 1,
+                                                                  );
+
+                                                                  // Also update weekly XP for leaderboard/party
+                                                                  await FirebaseFirestore
+                                                                      .instance
+                                                                      .collection(
+                                                                        'users',
+                                                                      )
+                                                                      .doc(
+                                                                        widget.studentID,
+                                                                      )
+                                                                      .set({
+                                                                    'weeklyXP':
+                                                                        FieldValue
+                                                                            .increment(
+                                                                          2,
+                                                                        ),
+                                                                  }, SetOptions(merge: true));
+
+                                                                  final partyQuery =
+                                                                      await FirebaseFirestore
+                                                                          .instance
+                                                                          .collection(
+                                                                            'parties',
+                                                                          )
+                                                                          .where(
+                                                                            'memberIDs',
+                                                                            arrayContains:
+                                                                                widget.studentID,
+                                                                          )
+                                                                          .limit(
+                                                                            1,
+                                                                          )
+                                                                          .get();
+
+                                                                  if (partyQuery
+                                                                      .docs
+                                                                      .isNotEmpty) {
+                                                                    await partyQuery
+                                                                        .docs
+                                                                        .first
+                                                                        .reference
+                                                                        .update({
+                                                                      'totalWeeklyXP':
+                                                                          FieldValue
+                                                                              .increment(
+                                                                            2,
+                                                                          ),
+                                                                    });
+                                                                  }
+                                                                }
+                                                              },
+                                                            ),
+                                                          );
+                                                        },
                                                       )
-                                                      .limit(1)
-                                                      .get();
-
-                                                  if (partyQuery.docs.isNotEmpty) {
-                                                    await partyQuery.docs.first.reference.update({
-                                                      'totalWeeklyXP':
-                                                          FieldValue.increment(expGained),
-                                                    });
-                                                  }
-                                                }
-                                              } else {
-                                                await FirebaseFirestore.instance
-                                                    .collection('users')
-                                                    .doc(widget.studentID)
-                                                    .collection('tasks')
-                                                    .doc(doc.id)
-                                                    .update({
-                                                  'completedDates': isDone
-                                                      ? FieldValue.arrayRemove([
-                                                          selectedTargetKey,
-                                                        ])
-                                                      : FieldValue.arrayUnion([
-                                                          selectedTargetKey,
-                                                        ]),
-                                                });
-                                              }
-                                            },
-                                          ),
+                                                      .toList(),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
                                     );

@@ -3,16 +3,23 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 class AIService {
-  static final GenerativeModel _model = GenerativeModel(
-    model: 'gemini-2.5-flash',
-    apiKey: dotenv.env['GEMINI_API_KEY']!,
-  );
+  static GenerativeModel? _cachedModel;
+
+  static GenerativeModel get _model {
+    if (_cachedModel != null) return _cachedModel!;
+    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? "";
+    _cachedModel = GenerativeModel(
+      model: 'gemini-3.5-flash',
+      apiKey: apiKey,
+    );
+    return _cachedModel!;
+  }
   
   static Future<Map<String, dynamic>> generateRoadmap(String goal) async {
-    final apiKey = dotenv.env['GEMINI_API_KEY']!;
+    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? "";
 
     final model = GenerativeModel(
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       apiKey: apiKey,
     );
 
@@ -143,48 +150,108 @@ Keep it clear and easy to understand.
   };
 }
 static Future<Map<String, dynamic>> generateDailyPlan({
-    required String studentID,
-    required List<Map<String, dynamic>> existingTasks,
-    required Map<String, dynamic>? aiConfig,
-  }) async {
-    final apiKey = dotenv.env['GEMINI_API_KEY']!;
-    final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
+  required String studentID,
+  required List<Map<String, dynamic>> existingTasks,
+  required Map<String, dynamic>? aiConfig,
+}) async {
+    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? "";
+    final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: apiKey);
 
-    final String configStr = aiConfig?.toString() ?? "Default Preferences";
-    final String tasksStr = existingTasks.map((t) => "${t['title']} (${t['category']} for ${t['course']})").join(", ");
+  final String configStr = aiConfig?.toString() ?? "Default Preferences";
+  final String tasksStr = existingTasks.map((t) => "${t['title']} (${t['category']} for ${t['course']})").join(", ");
 
-    final prompt = """
-  You are an Agentic Study Planner for an NTHU student. 
-  User Preferences: $configStr
-  Existing Calendar Tasks: $tasksStr
+  final prompt = """
+You are an Agentic Study Planner for an NTHU student. 
+User Preferences: $configStr
+Existing Calendar Tasks: $tasksStr
 
-  Based on these, create a "Daily Tactical Study Plan". 
-  1. Suggest 2-3 specific "AI Quests" (tasks) for today to help the user prepare for upcoming classes or catch up.
-  2. For each quest, provide a specific search query for Youtube study materials.
+Based on these, create a "Daily Tactical Study Plan". 
+1. Suggest 2-3 specific "AI Quests" (tasks) for today to help the user prepare for upcoming classes or catch up.
+2. For each quest, provide a specific search query for Youtube study materials.
+
+You MUST return ONLY valid JSON.
+Format:
+{
+"daily_advice": "Short encouraging message",
+"ai_quests": [
+  {
+    "title": "Study [Topic]",
+    "course": "[Course Name]",
+    "category": "AI Planned",
+    "priority": "High/Medium/Low",
+    "youtube_query": "Detailed youtube search query for this topic"
+  }
+]
+}
+""";
+
+  final response = await model.generateContent([Content.text(prompt)]);
+  String text = response.text ?? "{}";
+  final start = text.indexOf('{');
+  final end = text.lastIndexOf('}');
+  if (start != -1 && end != -1) text = text.substring(start, end + 1);
+
+  return jsonDecode(text);
+}
+
+static Future<Map<String, dynamic>> generateSubtasks({
+  required String taskTitle,
+  required String courseName,
+  required List<Map<String, dynamic>> studentGrades,
+}) async {
+  final apiKey = dotenv.env['GEMINI_API_KEY'];
+  if (apiKey == null || apiKey.isEmpty) {
+    print("❌ [AIService] Error: GEMINI_API_KEY is null or empty in .env");
+    return {"subtasks": []};
+  }
+
+  final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: apiKey);
+
+  final String gradesStr = studentGrades.isNotEmpty 
+      ? studentGrades.map((g) => "${g['courseName']}: ${g['grade']}").join(", ")
+      : "No grade history available.";
+
+  final prompt = """
+  You are an expert academic assistant at NTHU. 
+  A student needs to complete a task: "$taskTitle" for the course: "$courseName".
+
+  Student's previous academic performance: $gradesStr
+
+  Break down this task into 3-5 manageable subtasks. 
+  For each subtask, estimate the time required (in minutes) based on:
+  1. The student's ability (inferred from their grades). If they have high grades in related subjects, they might be faster.
+  2. The typical difficulty of the "$courseName" course.
 
   You MUST return ONLY valid JSON.
   Format:
   {
-  "daily_advice": "Short encouraging message",
-  "ai_quests": [
-    {
-      "title": "Study [Topic]",
-      "course": "[Course Name]",
-      "category": "AI Planned",
-      "priority": "High/Medium/Low",
-      "youtube_query": "Detailed youtube search query for this topic"
-    }
-  ]
+    "subtasks": [
+      {
+        "title": "...",
+        "estimated_minutes": 30,
+        "reasoning": "Brief explanation of why this time was estimated"
+      }
+    ]
   }
   """;
 
+  try {
+    print("🚀 [AIService] Generating subtasks for: $taskTitle...");
     final response = await model.generateContent([Content.text(prompt)]);
     String text = response.text ?? "{}";
+
+    print("📥 [AIService] RAW response: $text");
+
     final start = text.indexOf('{');
     final end = text.lastIndexOf('}');
     if (start != -1 && end != -1) text = text.substring(start, end + 1);
 
-    return jsonDecode(text);
+    final decoded = jsonDecode(text);
+    print("✅ [AIService] Successfully generated ${decoded['subtasks']?.length ?? 0} subtasks.");
+    return decoded;
+  } catch (e) {
+    print("❌ [AIService] Error generating subtasks: $e");
+    return {"subtasks": []};
   }
-
+}
 }
