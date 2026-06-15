@@ -114,57 +114,6 @@ class FirestoreService {
     }
   }
 
-  Future<bool> joinParty({
-    required String inviteCode,
-    required String studentID,
-  }) async {
-    try {
-      final existingParty = await _firestore
-          .collection('parties')
-          .where('memberIDs', arrayContains: studentID)
-          .limit(1)
-          .get();
-
-      if (existingParty.docs.isNotEmpty) {
-        return false;
-      }
-      final query = await _firestore
-          .collection('parties')
-          .where('inviteCode', isEqualTo: inviteCode.toUpperCase())
-          .limit(1)
-          .get();
-
-      if (query.docs.isEmpty) {
-        return false;
-      }
-
-      final doc = query.docs.first;
-
-      final members = List<String>.from(
-        doc.data()['memberIDs'] ?? [],
-      );
-
-      if (members.contains(studentID)) {
-        return true;
-      }
-
-      if (members.length >= 6) {
-        return false;
-      }
-
-      members.add(studentID);
-
-      await doc.reference.update({
-        'memberIDs': members,
-      });
-
-      return true;
-    } catch (e) {
-      print("Join Party Error: $e");
-      return false;
-    }
-  }
-
   Future<void> leaveParty({
     required String studentID,
   }) async {
@@ -229,5 +178,234 @@ class FirestoreService {
       print("Firebase Get AI Config Error: $e");
     }
     return null;
+  }
+
+  /// Finds other students who are taking the same courses as the current user
+  Future<List<Map<String, dynamic>>> getClassmateRecommendations(
+    String uid,
+  ) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      if (!userDoc.exists) return [];
+
+      final userData = userDoc.data()!;
+      final userCourses = Map<String, dynamic>.from(userData['courses'] ?? {});
+      final userCourseCodes = userCourses.keys.toSet();
+      
+      final friends = List<String>.from(userData['friends'] ?? []);
+      final sentRequests = List<Map<String, dynamic>>.from(userData['requests_sent'] ?? []);
+      final sentUids = sentRequests.map((r) => r['toUid'] as String).toSet();
+
+      if (userCourseCodes.isEmpty) return [];
+
+      final allUsers = await _firestore.collection('users').get();
+      List<Map<String, dynamic>> recommendations = [];
+
+      for (var doc in allUsers.docs) {
+        if (doc.id == uid) continue;
+
+        final data = doc.data();
+        final otherCourses = Map<String, dynamic>.from(data['courses'] ?? {});
+        final otherCourseCodes = otherCourses.keys.toSet();
+
+        final shared = userCourseCodes.intersection(otherCourseCodes);
+        if (shared.isNotEmpty) {
+          recommendations.add({
+            'uid': doc.id,
+            'sharedCourses': shared.toList(),
+            'name': doc.id,
+            'isFriend': friends.contains(doc.id),
+            'requestSent': sentUids.contains(doc.id),
+          });
+        }
+      }
+
+      return recommendations;
+    } catch (e) {
+      print("Get Recommendations Error: $e");
+      return [];
+    }
+  }
+
+  Future<void> unfriendUser({
+    required String uid,
+    required String friendUid,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'friends': FieldValue.arrayRemove([friendUid]),
+      });
+      await _firestore.collection('users').doc(friendUid).update({
+        'friends': FieldValue.arrayRemove([uid]),
+      });
+    } catch (e) {
+      print("Unfriend Error: $e");
+    }
+  }
+
+  Future<void> sendSocialRequest({
+    required String fromUid,
+    required String toUid,
+    required String type, // 'friend' or 'party'
+    String? partyId,
+    String? partyName,
+  }) async {
+    try {
+      // 1. Add to recipient's incoming requests
+      await _firestore.collection('users').doc(toUid).update({
+        'requests': FieldValue.arrayUnion([
+          {
+            'fromUid': fromUid,
+            'type': type,
+            'partyId': partyId,
+            'partyName': partyName,
+            'timestamp': Timestamp.now(),
+            'status': 'pending',
+          }
+        ])
+      });
+      
+      // 2. Add to sender's outgoing requests to prevent duplicates
+      await _firestore.collection('users').doc(fromUid).update({
+        'requests_sent': FieldValue.arrayUnion([
+          {
+            'toUid': toUid,
+            'type': type,
+            'timestamp': Timestamp.now(),
+          }
+        ])
+      });
+    } catch (e) {
+      // Create fields if they don't exist
+      await _firestore.collection('users').doc(toUid).set({
+        'requests': [
+          {
+            'fromUid': fromUid,
+            'type': type,
+            'partyId': partyId,
+            'partyName': partyName,
+            'timestamp': Timestamp.now(),
+            'status': 'pending',
+          }
+        ]
+      }, SetOptions(merge: true));
+      
+      await _firestore.collection('users').doc(fromUid).set({
+        'requests_sent': [
+          {
+            'toUid': toUid,
+            'type': type,
+            'timestamp': Timestamp.now(),
+          }
+        ]
+      }, SetOptions(merge: true));
+    }
+  }
+
+  Future<void> respondToRequest({
+    required String uid,
+    required Map<String, dynamic> request,
+    required bool accept,
+  }) async {
+    try {
+      // 1. Remove from recipient's requests
+      await _firestore.collection('users').doc(uid).update({
+        'requests': FieldValue.arrayRemove([request]),
+      });
+      
+      // 2. Remove from sender's requests_sent
+      final senderUid = request['fromUid'];
+      final senderDoc = await _firestore.collection('users').doc(senderUid).get();
+      if (senderDoc.exists) {
+        final sent = List<Map<String, dynamic>>.from(senderDoc.data()?['requests_sent'] ?? []);
+        final toRemove = sent.where((r) => r['toUid'] == uid && r['type'] == request['type']).toList();
+        if (toRemove.isNotEmpty) {
+          await _firestore.collection('users').doc(senderUid).update({
+            'requests_sent': FieldValue.arrayRemove(toRemove),
+          });
+        }
+      }
+
+      if (accept) {
+        if (request['type'] == 'friend') {
+          // Add to friends list for both
+          await _firestore.collection('users').doc(uid).update({
+            'friends': FieldValue.arrayUnion([request['fromUid']]),
+            // Move to request history to track that we were once friends/requested
+            'requests_history': FieldValue.arrayUnion([request]),
+          });
+          await _firestore.collection('users').doc(request['fromUid']).update({
+            'friends': FieldValue.arrayUnion([uid]),
+          });
+        } else if (request['type'] == 'party') {
+          // Join the party
+          await joinParty(
+            inviteCode: '', // Not used for direct invites if we use partyId
+            studentID: uid,
+            explicitPartyId: request['partyId'],
+          );
+        }
+      }
+    } catch (e) {
+      print("Respond to Request Error: $e");
+    }
+  }
+
+  /// Modified joinParty to support explicit party ID
+  Future<bool> joinParty({
+    String? inviteCode,
+    required String studentID,
+    String? explicitPartyId,
+  }) async {
+    try {
+      final existingParty = await _firestore
+          .collection('parties')
+          .where('memberIDs', arrayContains: studentID)
+          .limit(1)
+          .get();
+
+      if (existingParty.docs.isNotEmpty) {
+        return false;
+      }
+
+      DocumentSnapshot? doc;
+
+      if (explicitPartyId != null) {
+        doc = await _firestore.collection('parties').doc(explicitPartyId).get();
+      } else if (inviteCode != null) {
+        final query = await _firestore
+            .collection('parties')
+            .where('inviteCode', isEqualTo: inviteCode.toUpperCase())
+            .limit(1)
+            .get();
+        if (query.docs.isNotEmpty) doc = query.docs.first;
+      }
+
+      if (doc == null || !doc.exists) {
+        return false;
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      final members = List<String>.from(data['memberIDs'] ?? []);
+
+      if (members.contains(studentID)) {
+        return true;
+      }
+
+      if (members.length >= 6) {
+        return false;
+      }
+
+      members.add(studentID);
+
+      await doc.reference.update({
+        'memberIDs': members,
+      });
+
+      return true;
+    } catch (e) {
+      print("Join Party Error: $e");
+      return false;
+    }
   }
 }

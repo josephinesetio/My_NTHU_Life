@@ -12,6 +12,7 @@ import 'package:my_nthu_life/screens/ai_config_screen.dart';
 import 'package:my_nthu_life/screens/task_list_page.dart';
 import 'package:my_nthu_life/services/ai_service.dart';
 import 'package:my_nthu_life/widgets/pet_dashboard_widget.dart';
+import 'package:my_nthu_life/services/firestore_services.dart';
 import 'task_list_page.dart';
 import 'transcript.dart';
 import 'study.dart';
@@ -389,32 +390,180 @@ class _CustomNavBar extends StatelessWidget {
 }
 
 // ====== HOME PAGE ======
-class _HomePage extends StatelessWidget {
+class _HomePage extends StatefulWidget {
   final String studentID;
   const _HomePage({required this.studentID});
 
   @override
+  State<_HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<_HomePage> {
+  final FirestoreService _firestoreService = FirestoreService();
+
+  @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          TabBar(
+            indicatorColor: cs.primaryContainer,
+            labelStyle: GoogleFonts.orbitron(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+            unselectedLabelColor: cs.onSurfaceVariant,
+            labelColor: cs.primaryContainer,
+            tabs: const [
+              Tab(text: 'STATUS'),
+              Tab(text: 'REQUESTS'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildStatusTab(context, cs),
+                _buildRequestsTab(context, cs),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusTab(BuildContext context, ColorScheme cs) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _HeroCard(studentID: studentID),
+          _HeroCard(studentID: widget.studentID),
           const SizedBox(height: 14),
           ValueListenableBuilder<int>(
             valueListenable: totalCreditsNotifier,
             builder: (context, credits, child) {
               return PetDashboardWidget(
                 currentCredits: credits,
-                studentID: studentID,
+                studentID: widget.studentID,
               );
             },
           ),
           const SizedBox(height: 20),
-          _TodayMissionsCard(studentID: studentID),
+          _TodayMissionsCard(studentID: widget.studentID),
         ],
       ),
+    );
+  }
+
+  Widget _buildRequestsTab(BuildContext context, ColorScheme cs) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.studentID)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        final requests = List<Map<String, dynamic>>.from(data?['requests'] ?? []);
+
+        if (requests.isEmpty) {
+          return Center(
+            child: Text(
+              'No new requests',
+              style: GoogleFonts.outfit(color: cs.onSurfaceVariant),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(20),
+          itemCount: requests.length,
+          itemBuilder: (context, index) {
+            final req = requests[index];
+            final bool isParty = req['type'] == 'party';
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: cs.outlineVariant.withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        isParty ? Icons.group_add : Icons.person_add,
+                        color: cs.primaryContainer,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          isParty
+                              ? 'Party Invite: ${req['partyName']}'
+                              : 'Friend Request',
+                          style: GoogleFonts.orbitron(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'From: ${req['fromUid']}',
+                    style: GoogleFonts.outfit(
+                      color: cs.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => _firestoreService.respondToRequest(
+                          uid: widget.studentID,
+                          request: req,
+                          accept: false,
+                        ),
+                        child: Text(
+                          'Decline',
+                          style: TextStyle(color: cs.error),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _firestoreService.respondToRequest(
+                          uid: widget.studentID,
+                          request: req,
+                          accept: true,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: cs.primaryContainer,
+                          foregroundColor: cs.onPrimaryContainer,
+                        ),
+                        child: const Text('Accept'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

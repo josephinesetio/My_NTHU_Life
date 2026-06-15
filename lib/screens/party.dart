@@ -79,6 +79,7 @@ class _PartyPageState extends State<PartyPage>
   late TabController _tabController;
   Party? _myParty;
   bool _isLoading = true;
+  final Set<String> _sentRequestUids = {};
 
   final FirestoreService _firestoreService = FirestoreService();
   /*
@@ -233,6 +234,93 @@ class _PartyPageState extends State<PartyPage>
     setState(() {
       _myParty = null;
     });
+  }
+
+  Future<List<Map<String, dynamic>>> _getRecommendations() async {
+    return await _firestoreService.getClassmateRecommendations(widget.studentID);
+  }
+
+  Future<void> _showAddFriendAndPartyPrompt(Map<String, dynamic> rec) async {
+    final cs = Theme.of(context).colorScheme;
+    
+    final bool wantParty = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cs.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: cs.surfaceBright, width: 1.5),
+        ),
+        title: Text(
+          'ADD FRIEND',
+          style: GoogleFonts.orbitron(
+            fontWeight: FontWeight.bold,
+            color: cs.inversePrimary,
+            fontSize: 16,
+          ),
+        ),
+        content: Text(
+          'Do you also want to invite ${rec['name']} to form a party with you?',
+          style: GoogleFonts.outfit(color: cs.onSurfaceVariant, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Just Friend', style: TextStyle(color: cs.onSurfaceVariant)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Friend + Party',
+              style: GoogleFonts.orbitron(
+                color: cs.primaryContainer,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    // 1. Always send friend request
+    await _firestoreService.sendSocialRequest(
+      fromUid: widget.studentID,
+      toUid: rec['uid'],
+      type: 'friend',
+    );
+    
+    // 2. If yes, also send party request
+    if (wantParty) {
+      String? pId = _myParty?.id;
+      String? pName = _myParty?.name;
+      
+      // If user doesn't have a party yet, they'll need to create one first or we just send a generic invite
+      // For simplicity, let's say it only works if they already have a party or we show a message
+      if (pId != null) {
+        await _firestoreService.sendSocialRequest(
+          fromUid: widget.studentID,
+          toUid: rec['uid'],
+          type: 'party',
+          partyId: pId,
+          partyName: pName,
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Friend request sent! To invite to a party, create one first.')),
+          );
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _sentRequestUids.add('${rec['uid']}_friend');
+        if (wantParty && _myParty != null) {
+          _sentRequestUids.add('${rec['uid']}_party');
+        }
+      });
+    }
   }
 
   // ── Dialogs ────────────────────────────────────────────────────────────────
@@ -722,6 +810,39 @@ class _PartyPageState extends State<PartyPage>
             subtitle: 'Enter an invite code to join a party',
             onTap: _showJoinPartyDialog,
           ),
+
+          const SizedBox(height: 28),
+          _sectionLabel(cs, 'RECOMMENDED CLASSMATES'),
+          const SizedBox(height: 12),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _getRecommendations(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final list = snapshot.data ?? [];
+              if (list.isEmpty) {
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    'No classmates found with shared courses yet.',
+                    style: GoogleFonts.outfit(color: cs.onSurfaceVariant, fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+
+              return Column(
+                children: list.map((rec) => _recommendationCard(cs, rec)).toList(),
+              );
+            },
+          ),
+
           const SizedBox(height: 28),
           _sectionLabel(cs, 'HOW PARTY XP WORKS'),
           const SizedBox(height: 12),
@@ -744,6 +865,117 @@ class _PartyPageState extends State<PartyPage>
             Icons.group_rounded,
             'Max 6 Members',
             'Parties are capped at 6 members for balanced competition.',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recommendationCard(ColorScheme cs, Map<String, dynamic> rec) {
+    final shared = rec['sharedCourses'] as List;
+    final bool isFriend = rec['isFriend'] ?? false;
+    final bool requestSent = rec['requestSent'] ?? false;
+    // Local session state as backup
+    final bool sessionFriendSent = _sentRequestUids.contains('${rec['uid']}_friend');
+    final bool sessionPartySent = _sentRequestUids.contains('${rec['uid']}_party');
+    
+    final bool anyFriendSent = requestSent || sessionFriendSent;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: cs.surfaceBright,
+                child: Icon(Icons.person, color: cs.primaryContainer, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rec['name'],
+                      style: GoogleFonts.orbitron(
+                        color: cs.onSurface,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      'Shared: ${shared.join(", ")}',
+                      style: GoogleFonts.outfit(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  isFriend 
+                      ? Icons.person_remove_alt_1_outlined
+                      : (anyFriendSent ? Icons.check_circle : Icons.person_add_alt_1),
+                  color: isFriend 
+                      ? cs.error 
+                      : (anyFriendSent ? Colors.greenAccent : cs.primaryContainer),
+                  size: 20,
+                ),
+                onPressed: anyFriendSent && !isFriend
+                    ? null
+                    : () async {
+                        if (isFriend) {
+                          await _firestoreService.unfriendUser(
+                            uid: widget.studentID,
+                            friendUid: rec['uid'],
+                          );
+                        } else {
+                          await _showAddFriendAndPartyPrompt(rec);
+                        }
+                        // Refresh recommendations
+                        setState(() {});
+                      },
+                tooltip: isFriend 
+                    ? 'Unfriend' 
+                    : (anyFriendSent ? 'Request Sent' : 'Add Friend'),
+              ),
+              if (_myParty != null && _myParty!.memberIDs.length < 6)
+                IconButton(
+                  icon: Icon(
+                    sessionPartySent ? Icons.check_circle_outline : Icons.group_add_outlined,
+                    color: sessionPartySent ? Colors.greenAccent : cs.outline,
+                    size: 20,
+                  ),
+                  onPressed: sessionPartySent
+                      ? null
+                      : () async {
+                          await _firestoreService.sendSocialRequest(
+                            fromUid: widget.studentID,
+                            toUid: rec['uid'],
+                            type: 'party',
+                            partyId: _myParty!.id,
+                            partyName: _myParty!.name,
+                          );
+                          setState(() {
+                            _sentRequestUids.add('${rec['uid']}_party');
+                          });
+                        },
+                  tooltip: sessionPartySent ? 'Invite Sent' : 'Invite to Party',
+                ),
+            ],
           ),
         ],
       ),
@@ -1002,6 +1234,42 @@ class _PartyPageState extends State<PartyPage>
                   ),
                 ],
               ),
+
+              if (party.memberIDs.length < 6) ...[
+                const SizedBox(height: 28),
+                _sectionLabel(cs, 'RECRUIT CLASSMATES'),
+                const SizedBox(height: 12),
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _getRecommendations(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final list = (snapshot.data ?? [])
+                        .where((rec) => !party.memberIDs.contains(rec['uid']))
+                        .toList();
+                    if (list.isEmpty) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          'No more classmates found to recruit.',
+                          style: GoogleFonts.outfit(color: cs.onSurfaceVariant, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: list.map((rec) => _recommendationCard(cs, rec)).toList(),
+                    );
+                  },
+                ),
+              ],
 
               const SizedBox(height: 80),
             ],

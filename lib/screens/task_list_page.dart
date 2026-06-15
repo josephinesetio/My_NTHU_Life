@@ -1303,6 +1303,31 @@ class _TaskListPageState extends State<TaskListPage> {
 
                                                                 if (newVal &&
                                                                     mounted) {
+                                                                  // Show reward notification
+                                                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                                    SnackBar(
+                                                                      backgroundColor: cs.surfaceContainerHigh,
+                                                                      content: Row(
+                                                                        children: [
+                                                                          Icon(Icons.stars, color: Colors.amber, size: 18),
+                                                                          const SizedBox(width: 8),
+                                                                          Text(
+                                                                            "REWARD: +2 XP, +1 Coin",
+                                                                            style: GoogleFonts.orbitron(
+                                                                              fontSize: 11,
+                                                                              fontWeight: FontWeight.bold,
+                                                                              color: cs.primaryContainer,
+                                                                            ),
+                                                                          ),
+                                                                        ],
+                                                                      ),
+                                                                      duration: const Duration(seconds: 2),
+                                                                      behavior: SnackBarBehavior.floating,
+                                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                                    ),
+                                                                  );
+
                                                                   Provider.of<PetProvider>(
                                                                     context,
                                                                     listen: false,
@@ -1361,7 +1386,59 @@ class _TaskListPageState extends State<TaskListPage> {
                                                                           ),
                                                                     });
                                                                   }
+
+                                                                  // Auto-complete main task if all subtasks are done
+                                                                  bool allDone = true;
+                                                                  for (var s in currentSubtasks) {
+                                                                    final bool sDone = stRepeatType == 'None'
+                                                                        ? (s['isDone'] ?? false)
+                                                                        : (List<String>.from(s['completedDates'] ?? [])).contains(selectedTargetKey);
+                                                                    if (!sDone) {
+                                                                      allDone = false;
+                                                                      break;
+                                                                    }
+                                                                  }
+
+                                                                  if (allDone && !isDone) {
+                                                                    final int mainExp = task['exp'] ?? 0;
+                                                                    final int mainCoins = task['coins'] ?? 0;
+
+                                                                    if (stRepeatType == 'None') {
+                                                                      await FirebaseFirestore.instance
+                                                                          .collection('users')
+                                                                          .doc(widget.studentID)
+                                                                          .collection('tasks')
+                                                                          .doc(doc.id)
+                                                                          .update({'isDone': true});
+
+                                                                      // Award main task rewards
+                                                                      Provider.of<PetProvider>(context, listen: false)
+                                                                          .awardGrowthPoints(studentID: widget.studentID, exp: mainExp, coins: mainCoins);
+
+                                                                      await FirebaseFirestore.instance.collection('users').doc(widget.studentID).set({
+                                                                        'weeklyXP': FieldValue.increment(mainExp),
+                                                                      }, SetOptions(merge: true));
+
+                                                                      if (partyQuery.docs.isNotEmpty) {
+                                                                        await partyQuery.docs.first.reference.update({
+                                                                          'totalWeeklyXP': FieldValue.increment(mainExp),
+                                                                        });
+                                                                      }
+                                                                    } else {
+                                                                      await FirebaseFirestore.instance
+                                                                          .collection('users')
+                                                                          .doc(widget.studentID)
+                                                                          .collection('tasks')
+                                                                          .doc(doc.id)
+                                                                          .update({
+                                                                        'completedDates': FieldValue.arrayUnion([selectedTargetKey]),
+                                                                      });
+                                                                      // Recurring tasks don't usually give main XP/Coins repeatedly in this logic
+                                                                      // but we follow the established main checkmark pattern if needed.
+                                                                    }
+                                                                  }
                                                                 }
+
                                                               },
                                                             ),
                                                           );
