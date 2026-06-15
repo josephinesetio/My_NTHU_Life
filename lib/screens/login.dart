@@ -293,12 +293,12 @@ class _LoginState extends State<Login> {
     );
   }
 
-  void _showResetPasswordDialog(BuildContext context) {
+  void _showResetPasswordDialog(BuildContext parentContext) {
     final controller = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (parentContext) => AlertDialog(
         backgroundColor: _cardDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -342,7 +342,7 @@ class _LoginState extends State<Login> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(parentContext),
             child: Text(
               "Cancel",
               style: GoogleFonts.outfit(color: Colors.grey),
@@ -354,8 +354,8 @@ class _LoginState extends State<Login> {
                 await FirebaseAuth.instance.sendPasswordResetEmail(
                   email: controller.text.trim(),
                 );
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                Navigator.pop(parentContext);
+                ScaffoldMessenger.of(parentContext).showSnackBar(
                   SnackBar(
                     content: Text(
                       "Reset link sent.",
@@ -365,8 +365,8 @@ class _LoginState extends State<Login> {
                   ),
                 );
               } on FirebaseAuthException catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                Navigator.pop(parentContext);
+                ScaffoldMessenger.of(parentContext).showSnackBar(
                   SnackBar(
                     content: Text(e.message ?? "Error occurred"),
                     backgroundColor: Colors.red,

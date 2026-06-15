@@ -24,6 +24,17 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
   bool hasSearched = false;
   bool isGeneratingQuiz = false;
   Map<String, dynamic>? quizResult;
+  bool isExplaining = false;
+  String? explanationResult;
+  bool studyStarted = false;
+  bool studyFinished = false;
+
+  int studyMinutes = 25;
+  int breakMinutes = 5;
+  int totalSessions = 4;
+
+  int currentSession = 1; 
+  int remainingSeconds = 1500;
 
   @override
   void initState() {
@@ -47,14 +58,17 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       if (planDoc.exists) {
         final quests = planDoc.data()?['ai_quests'] as List? ?? [];
         if (quests.isNotEmpty) {
-          // Combine all queries or just pick the first few
-          final query = quests.map((q) => q['youtube_query']).join(" ");
-          final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.studentID).get();
-          final aiConfig = userDoc.data()?['ai_config'] as Map<String, dynamic>?;
+          final query =
+              quests.map((q) => q['youtube_query']).join(" ");
 
-          final result = await AIService.generateRoadmap(query, aiConfig: aiConfig);
+          final result =
+              await AIService.generateRoadmap(query);
+
           setState(() {
-            recommendedVideos = List<Map<String, dynamic>>.from(result["videos"] ?? []);
+            recommendedVideos =
+                List<Map<String, dynamic>>.from(
+                  result["videos"] ?? [],
+                );
           });
         }
       }
@@ -261,20 +275,18 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                         fillColor:
                             cs.surfaceContainerHigh, // #241E2E input fill
                         filled: true,
-                        suffixIcon: Padding(
-                          padding: const EdgeInsets.all(6.0),
-                          child: GestureDetector(
-                            onTap: _searchVideos,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: cs.primaryContainer,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.arrow_upward_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
+                        suffixIcon: IconButton(
+                          onPressed: _searchVideos,
+                          icon: Container(
+                            decoration: BoxDecoration(
+                              color: cs.primaryContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(6),
+                            child: const Icon(
+                              Icons.arrow_upward_rounded,
+                              color: Colors.white,
+                              size: 18,
                             ),
                           ),
                         ),
@@ -306,6 +318,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                             cs,
                             Icons.menu_book_outlined,
                             "Decode Topic",
+                            onTap: _explainTopic,
                           ),
                           _buildActionChip(
                             cs,
@@ -427,6 +440,8 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                         "Input a subject node to receive video intelligence.",
                         style: GoogleFonts.outfit(color: cs.onSurfaceVariant),
                       )
+                    else if(isLoading)
+                      const Center(child: CircularProgressIndicator())
                     else if (videos.isEmpty)
                       Text(
                         "No signals detected. Try another query.",
@@ -553,6 +568,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
     VoidCallback? onTap,
   }) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(right: 8),
@@ -576,6 +592,89 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
           ],
         ),
       ),
+    );
+  }
+  Widget _buildVideoPlaceholderItem(Color mutedColor, Color borderPurple) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 120,
+          height: 70,
+          decoration: BoxDecoration(
+            color: const Color(0xFF2D2636),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(Icons.play_arrow_rounded, color: mutedColor, size: 28),
+              Positioned(
+                bottom: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    "10:00",
+                    style: GoogleFonts.outfit(color: Colors.white, fontSize: 9),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2D2636),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                width: 80,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2D2636),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2D2636),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Text(
+                    "  •  123K views  •  2 years ago",
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      color: mutedColor.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Icon(Icons.more_vert_rounded, size: 18, color: mutedColor),
+      ],
     );
   }
 
@@ -653,22 +752,20 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
         hasSearched = true;
       });
 
-      // Fetch AI Config
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.studentID)
-          .get();
-      final aiConfig = doc.data()?['ai_config'] as Map<String, dynamic>?;
-
-      final result = await AIService.generateRoadmap(topic, aiConfig: aiConfig);
+      final result = await AIService.generateRoadmap(topic);
+      print(result);
       setState(() {
         videos = List<Map<String, dynamic>>.from(result["videos"] ?? []);
         isLoading = false;
       });
     } catch (e) {
-      setState(() => isLoading = false);
-    }
+    print("ERROR: $e");
+
+    setState(() {
+      isLoading = false;
+    });
   }
+}
 
   Future<void> _openYouTubeSearch() async {
     final topic = _controller.text.trim();
@@ -687,7 +784,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       if (text.isEmpty || isSummarizing) return;
       setState(() => isSummarizing = true);
       final result = await AIService.summarizeNotes(text);
-      final summary = result["summary"];
+      final summary = result["summary"]?.toString()?? "";
       if (summary == null || summary.isEmpty) {
         setState(() => isSummarizing = false);
         return;
@@ -852,8 +949,62 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       ),
     );
   }
-}
 
+  Future<void> _explainTopic() async {
+    try {
+      final topic = _controller.text.trim();
+      if (topic.isEmpty) return;
+      if (isExplaining) return;
+
+      setState(() {
+        isExplaining = true;
+      });
+
+      final result = await AIService.explainTopic(topic);
+
+      final explanation = result["explanation"]?.toString()?? "";
+
+      setState(() {
+        explanationResult = explanation;
+        isExplaining = false;
+      });
+
+      if (!mounted) return;
+      _showExplanationBottomSheet();
+
+    } catch (e) {
+      print("EXPLAIN ERROR: $e");
+      setState(() {
+        isExplaining = false;
+      });
+    }
+  }
+    void _showExplanationBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1F1B24),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Text(
+              explanationResult ?? "",
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 // ── YouTube Player Screen ──────────────────────────────────────────────────────
 
 class YoutubePlayerScreen extends StatefulWidget {
