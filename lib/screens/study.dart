@@ -17,7 +17,6 @@ import 'package:provider/provider.dart';
 import 'package:my_nthu_life/pet_files/pet_provider.dart';
 import 'package:file_picker/file_picker.dart';
 
-
 class AIStudyMaterialWidget extends StatefulWidget {
   final String studentID;
   const AIStudyMaterialWidget({super.key, required this.studentID});
@@ -193,7 +192,9 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Failed to analyze study material. Please try again."),
+            content: Text(
+              "Failed to analyze study material. Please try again.",
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -201,10 +202,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
     } catch (e) {
       print("Error picking/analyzing file: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: $e"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
     } finally {
       setState(() {
@@ -279,14 +277,16 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 'estimated_minutes': 10,
                 'isDone': false,
                 'completedDates': [],
-              }
+              },
             ],
             'createdAt': FieldValue.serverTimestamp(),
           });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Scheduled study for $topic on $dayName added to your planner!"),
+          content: Text(
+            "Scheduled study for $topic on $dayName added to your planner!",
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -318,11 +318,30 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF13101B),
-        title: Text("DELETE MATERIAL?", style: GoogleFonts.orbitron(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-        content: Text("Are you sure you want to delete the analyzed material and quiz for this course?", style: GoogleFonts.outfit(color: Colors.white70)),
+        title: Text(
+          "DELETE MATERIAL?",
+          style: GoogleFonts.orbitron(
+            color: Colors.redAccent,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          "Are you sure you want to delete the analyzed material and quiz for this course?",
+          style: GoogleFonts.outfit(color: Colors.white70),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("CANCEL")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("DELETE", style: TextStyle(color: Colors.redAccent))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("CANCEL"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              "DELETE",
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
         ],
       ),
     );
@@ -347,7 +366,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Material deleted successfully!"), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("Material deleted successfully!"),
+            backgroundColor: Colors.green,
+          ),
         );
       } catch (e) {
         print("Error deleting material: $e");
@@ -571,16 +593,25 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
               ),
               const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.greenAccent.withOpacity(0.3),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                    const Icon(
+                      Icons.star_rounded,
+                      color: Colors.amber,
+                      size: 20,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       "+10 Focus Points Earned",
@@ -600,7 +631,8 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_analyzedMaterial != null && _analyzedMaterial!['quiz'] != null) ...[
+                if (_analyzedMaterial != null &&
+                    _analyzedMaterial!['quiz'] != null) ...[
                   SizedBox(
                     width: 220,
                     child: ElevatedButton.icon(
@@ -638,7 +670,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.greenAccent,
-                      side: const BorderSide(color: Colors.greenAccent, width: 1.5),
+                      side: const BorderSide(
+                        color: Colors.greenAccent,
+                        width: 1.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -770,19 +805,20 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildAdaptiveCrammerBanner(context, cs),
               _buildProfessorPersonaBanner(context, cs),
               _buildTopPomodoroCard(cs),
+              const SizedBox(height: 20),
+
               // --- 0. RECOMMENDED FOR YOU (AGENTIC) ---
-              if (isRecommendedLoading)
+              if (isRecommendedLoading) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
-                  margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
                     color: cs.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(20),
@@ -808,12 +844,12 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                       ],
                     ),
                   ),
-                )
-              else if (recommendedVideos.isNotEmpty)
+                ),
+                const SizedBox(height: 20),
+              ] else if (recommendedVideos.isNotEmpty) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -859,12 +895,13 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
+              ],
 
               // --- 1. CLASS SELECTION ---
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(20),
@@ -1079,41 +1116,6 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-
-                    // Action chips — gamified labels
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      // child: Row(
-                      //   children: [
-                      //     _buildActionChip(
-                      //       cs,
-                      //       Icons.menu_book_outlined,
-                      //       "Decode Topic",
-                      //       onTap: _explainTopic,
-                      //     ),
-                      //     _buildActionChip(
-                      //       cs,
-                      //       Icons.description_outlined,
-                      //       "Summarize",
-                      //       onTap: _summarizeNotes,
-                      //     ),
-                      //     _buildActionChip(
-                      //       cs,
-                      //       Icons.play_circle_outline_rounded,
-                      //       "Generate Video",
-                      //       onTap: _searchVideos,
-                      //     ),
-                      //     _buildActionChip(
-                      //       cs,
-                      //       Icons.quiz_outlined,
-                      //       "Run Trial",
-                      //       onTap: _generateQuiz,
-                      //     ),
-                      //     _buildActionChip(cs, Icons.more_horiz, "More"),
-                      //   ],
-                      // ),
-                    ),
                   ],
                 ),
               ),
@@ -1123,7 +1125,6 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
               if (summaryResult != null) ...[
                 Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 20),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: cs.surfaceContainerLow,
@@ -1160,6 +1161,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
 
               // --- 4. VIDEO RECON SECTION ---
@@ -1257,7 +1259,6 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                     return Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(bottom: 20),
                       decoration: BoxDecoration(
                         color: cs.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(20),
@@ -1310,7 +1311,6 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   return Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 20),
                     decoration: BoxDecoration(
                       color: cs.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(20),
@@ -1360,6 +1360,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   );
                 },
               ),
+              const SizedBox(height: 20),
 
               // --- 6. INTEL BANNER ---
               Container(
@@ -1884,7 +1885,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                         color: Colors.greenAccent.withOpacity(0.02),
                         blurRadius: 30,
                         spreadRadius: 5,
-                      )
+                      ),
                     ],
                   ),
                   alignment: Alignment.center,
@@ -1957,7 +1958,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: cs.primaryContainer,
-                    side: BorderSide(color: cs.primaryContainer.withOpacity(0.5), width: 1.5),
+                    side: BorderSide(
+                      color: cs.primaryContainer.withOpacity(0.5),
+                      width: 1.5,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -2031,7 +2035,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
               const SizedBox(height: 8),
               Center(
                 child: Text(
-                  "Load your class syllabus, lecture slides, or PDF materials to feed Gemini's core before starting.",
+                  "Load your class syllabus, lecture slides, or PDF materials before starting.",
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     color: cs.onSurfaceVariant,
@@ -2189,7 +2193,11 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
         ),
         child: Column(
           children: [
-            Icon(Icons.lock_outline_rounded, color: cs.onSurfaceVariant, size: 36),
+            Icon(
+              Icons.lock_outline_rounded,
+              color: cs.onSurfaceVariant,
+              size: 36,
+            ),
             const SizedBox(height: 12),
             Text(
               "SELECT A TARGET CLASS FIRST",
@@ -2221,12 +2229,18 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
         decoration: BoxDecoration(
           color: cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: cs.primaryContainer.withOpacity(0.5), width: 1.5),
+          border: Border.all(
+            color: cs.primaryContainer.withOpacity(0.5),
+            width: 1.5,
+          ),
         ),
         child: Center(
           child: Column(
             children: [
-              CircularProgressIndicator(color: cs.primaryContainer, strokeWidth: 2.5),
+              CircularProgressIndicator(
+                color: cs.primaryContainer,
+                strokeWidth: 2.5,
+              ),
               const SizedBox(height: 20),
               Text(
                 "CONNECTING TO COGNITIVE CORE...",
@@ -2288,7 +2302,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 onTap: _pickAndAnalyzeMaterial,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 28,
+                    horizontal: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: cs.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(16),
@@ -2300,7 +2317,11 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.cloud_upload_outlined, color: cs.primaryContainer, size: 44),
+                      Icon(
+                        Icons.cloud_upload_outlined,
+                        color: cs.primaryContainer,
+                        size: 44,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         "CHOOSE PDF / PPT FILE",
@@ -2336,11 +2357,18 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.greenAccent.withOpacity(0.5), width: 1.5),
+        border: Border.all(
+          color: Colors.greenAccent.withOpacity(0.5),
+          width: 1.5,
+        ),
       ),
       child: Column(
         children: [
-          const Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 48),
+          const Icon(
+            Icons.check_circle_outline_rounded,
+            color: Colors.greenAccent,
+            size: 48,
+          ),
           const SizedBox(height: 16),
           Text(
             "TRANSMISSION SYNCHRONIZED!",
@@ -2364,10 +2392,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
           const SizedBox(height: 12),
           Text(
             "Gemini has finished decoding the core concepts and is ready to assist you in Study HQ.",
-            style: GoogleFonts.outfit(
-              fontSize: 12,
-              color: cs.onSurfaceVariant,
-            ),
+            style: GoogleFonts.outfit(fontSize: 12, color: cs.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],
@@ -2628,12 +2653,13 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: const Color(0xFF13101B), // dark background
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: _isTimerRunning ? Colors.greenAccent.withOpacity(0.5) : cs.outlineVariant.withOpacity(0.3),
+          color: _isTimerRunning
+              ? Colors.greenAccent.withOpacity(0.5)
+              : cs.outlineVariant.withOpacity(0.3),
           width: 1.5,
         ),
         boxShadow: _isTimerRunning
@@ -2642,7 +2668,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   color: Colors.greenAccent.withOpacity(0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 4),
-                )
+                ),
               ]
             : null,
       ),
@@ -2665,7 +2691,9 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 ),
                 Icon(
                   treeIcon,
-                  color: _isTimerRunning ? Colors.greenAccent : cs.primaryContainer.withOpacity(0.6),
+                  color: _isTimerRunning
+                      ? Colors.greenAccent
+                      : cs.primaryContainer.withOpacity(0.6),
                   size: 26,
                 ),
               ],
@@ -2682,7 +2710,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   onTap: _showSetTimerDialog,
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -2733,11 +2764,15 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 icon: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: _isTimerRunning ? Colors.amber.withOpacity(0.15) : Colors.green.withOpacity(0.15),
+                    color: _isTimerRunning
+                        ? Colors.amber.withOpacity(0.15)
+                        : Colors.green.withOpacity(0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    _isTimerRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    _isTimerRunning
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
                     color: _isTimerRunning ? Colors.amber : Colors.greenAccent,
                     size: 20,
                   ),
@@ -2772,7 +2807,6 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
-        margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
           color: cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(20),
@@ -2780,7 +2814,11 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
         ),
         child: Column(
           children: [
-            Icon(Icons.lock_outline_rounded, color: cs.onSurfaceVariant, size: 36),
+            Icon(
+              Icons.lock_outline_rounded,
+              color: cs.onSurfaceVariant,
+              size: 36,
+            ),
             const SizedBox(height: 12),
             Text(
               "SELECT A TARGET CLASS",
@@ -2813,12 +2851,18 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
         decoration: BoxDecoration(
           color: cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: cs.primaryContainer.withOpacity(0.5), width: 1.5),
+          border: Border.all(
+            color: cs.primaryContainer.withOpacity(0.5),
+            width: 1.5,
+          ),
         ),
         child: Center(
           child: Column(
             children: [
-              CircularProgressIndicator(color: cs.primaryContainer, strokeWidth: 2.5),
+              CircularProgressIndicator(
+                color: cs.primaryContainer,
+                strokeWidth: 2.5,
+              ),
               const SizedBox(height: 20),
               Text(
                 "CONNECTING TO COGNITIVE CORE...",
@@ -2848,7 +2892,6 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
-        margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
           color: cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(20),
@@ -2859,7 +2902,11 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
           children: [
             Row(
               children: [
-                Icon(Icons.rocket_launch_outlined, color: cs.primaryContainer, size: 20),
+                Icon(
+                  Icons.rocket_launch_outlined,
+                  color: cs.primaryContainer,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   "AI MATERIAL COGNITION",
@@ -2887,7 +2934,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 onTap: _pickAndAnalyzeMaterial,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24,
+                    horizontal: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: cs.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(16),
@@ -2899,7 +2949,11 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.cloud_upload_outlined, color: cs.primaryContainer, size: 40),
+                      Icon(
+                        Icons.cloud_upload_outlined,
+                        color: cs.primaryContainer,
+                        size: 40,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         "SELECT PDF / PPT COGNITIVE TRANSCEIVER",
@@ -2928,9 +2982,13 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       );
     }
 
-    final topics = List<String>.from(_analyzedMaterial!['important_topics'] ?? []);
-    final summary = _analyzedMaterial!['summary'] as String? ?? 'No summary generated.';
-    final estTime = _analyzedMaterial!['estimated_study_time_minutes'] as int? ?? 60;
+    final topics = List<String>.from(
+      _analyzedMaterial!['important_topics'] ?? [],
+    );
+    final summary =
+        _analyzedMaterial!['summary'] as String? ?? 'No summary generated.';
+    final estTime =
+        _analyzedMaterial!['estimated_study_time_minutes'] as int? ?? 60;
     final schedule = _analyzedMaterial!['pomodoro_schedule'] as List? ?? [];
     final videoRecon = _analyzedMaterial!['videos'] as List? ?? [];
 
@@ -2941,7 +2999,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.primaryContainer.withOpacity(0.5), width: 1.5),
+        border: Border.all(
+          color: cs.primaryContainer.withOpacity(0.5),
+          width: 1.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2952,7 +3013,11 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
               Expanded(
                 child: Row(
                   children: [
-                    Icon(Icons.task_rounded, color: cs.primaryContainer, size: 20),
+                    Icon(
+                      Icons.task_rounded,
+                      color: cs.primaryContainer,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -2970,7 +3035,11 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
                 onPressed: _deleteMaterial,
               ),
             ],
@@ -2987,7 +3056,11 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.access_time_rounded, color: Colors.amber, size: 16),
+                const Icon(
+                  Icons.access_time_rounded,
+                  color: Colors.amber,
+                  size: 16,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   "ESTIMATED STUDY DURATION: $estTime MINUTES",
@@ -3018,7 +3091,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
             runSpacing: 4,
             children: topics.map((t) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(8),
@@ -3093,11 +3169,16 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 children: [
                   Container(
                     width: 80,
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: cs.primaryContainer.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: cs.primaryContainer.withOpacity(0.2)),
+                      border: Border.all(
+                        color: cs.primaryContainer.withOpacity(0.2),
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -3135,9 +3216,15 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.add_task_rounded, color: cs.primaryContainer, size: 20),
+                    icon: Icon(
+                      Icons.add_task_rounded,
+                      color: cs.primaryContainer,
+                      size: 20,
+                    ),
                     tooltip: "Add to Calendar Tasks",
-                    onPressed: () => _addScheduledTaskToPlanner(Map<String, dynamic>.from(session)),
+                    onPressed: () => _addScheduledTaskToPlanner(
+                      Map<String, dynamic>.from(session),
+                    ),
                   ),
                 ],
               ),
@@ -3156,7 +3243,15 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
               ),
             ),
             const SizedBox(height: 8),
-            ...videoRecon.map((v) => _buildVideoItem(cs, Map<String, dynamic>.from(v), showSave: true)).toList(),
+            ...videoRecon
+                .map(
+                  (v) => _buildVideoItem(
+                    cs,
+                    Map<String, dynamic>.from(v),
+                    showSave: true,
+                  ),
+                )
+                .toList(),
             const SizedBox(height: 16),
           ],
 
@@ -3190,9 +3285,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
 
   Widget _buildQuizView(ColorScheme cs) {
     if (_analyzedMaterial == null || _analyzedMaterial!['quiz'] == null) {
-      return const Scaffold(
-        body: Center(child: Text("No quiz available.")),
-      );
+      return const Scaffold(body: Center(child: Text("No quiz available.")));
     }
 
     final quizList = _analyzedMaterial!['quiz'] as List;
@@ -3200,7 +3293,8 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
       return _buildQuizResultView(cs);
     }
 
-    final currentQuestion = quizList[_currentQuestionIndex] as Map<String, dynamic>;
+    final currentQuestion =
+        quizList[_currentQuestionIndex] as Map<String, dynamic>;
     final questionText = currentQuestion['question'] as String? ?? '';
     final options = List<String>.from(currentQuestion['options'] ?? []);
     final correctAnswer = currentQuestion['answer'] as String? ?? '';
@@ -3252,7 +3346,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                         _isTakingQuiz = false;
                       });
                     },
-                    child: const Text("ABORT", style: TextStyle(color: Colors.redAccent)),
+                    child: const Text(
+                      "ABORT",
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
                   ),
                 ],
               ),
@@ -3293,7 +3390,9 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 child: LinearProgressIndicator(
                   value: (_currentQuestionIndex + 1) / 10,
                   backgroundColor: cs.surfaceContainerHigh,
-                  valueColor: AlwaysStoppedAnimation<Color>(cs.primaryContainer),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    cs.primaryContainer,
+                  ),
                   minHeight: 6,
                 ),
               ),
@@ -3322,7 +3421,7 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
               ...options.map((opt) {
                 final isSelected = _selectedOptionInCurrentQuestion == opt;
                 final isCorrect = opt == correctAnswer;
-                
+
                 Color cardColor = cs.surfaceContainerLow;
                 Color borderColor = cs.outlineVariant;
                 Color textColor = cs.onSurface;
@@ -3358,7 +3457,10 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   child: Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                     decoration: BoxDecoration(
                       color: cardColor,
                       borderRadius: BorderRadius.circular(12),
@@ -3372,16 +3474,24 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                             style: GoogleFonts.outfit(
                               color: textColor,
                               fontSize: 14,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                         ),
                         if (_hasAnsweredCurrentQuestion) ...[
                           if (isCorrect)
-                            const Icon(Icons.check_circle_rounded, color: Colors.greenAccent)
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.greenAccent,
+                            )
                           else if (isSelected)
-                            const Icon(Icons.cancel_rounded, color: Colors.redAccent)
-                        ]
+                            const Icon(
+                              Icons.cancel_rounded,
+                              color: Colors.redAccent,
+                            ),
+                        ],
                       ],
                     ),
                   ),
@@ -3397,14 +3507,20 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                   decoration: BoxDecoration(
                     color: Colors.blueAccent.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+                    border: Border.all(
+                      color: Colors.blueAccent.withOpacity(0.3),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.lightbulb_outline_rounded, color: Colors.blueAccent, size: 18),
+                          const Icon(
+                            Icons.lightbulb_outline_rounded,
+                            color: Colors.blueAccent,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             "COGNITIVE DECONSTRUCTION",
@@ -3448,9 +3564,15 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                           _selectedOptionInCurrentQuestion = null;
                           _hasAnsweredCurrentQuestion = false;
                         } else {
-                          Provider.of<PetProvider>(context, listen: false)
-                              .awardGrowthPoints(studentID: widget.studentID, exp: 15, coins: 5);
-                          
+                          Provider.of<PetProvider>(
+                            context,
+                            listen: false,
+                          ).awardGrowthPoints(
+                            studentID: widget.studentID,
+                            exp: 15,
+                            coins: 5,
+                          );
+
                           FirebaseFirestore.instance
                               .collection('users')
                               .doc(widget.studentID)
@@ -3463,7 +3585,9 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                       });
                     },
                     child: Text(
-                      _currentQuestionIndex < 9 ? "CONTINUE ASSESSMENT" : "SUBMIT ASSESSMENT",
+                      _currentQuestionIndex < 9
+                          ? "CONTINUE ASSESSMENT"
+                          : "SUBMIT ASSESSMENT",
                       style: GoogleFonts.orbitron(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -3524,7 +3648,9 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                     color: cs.surfaceContainerLow,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: _quizScore >= 7 ? Colors.greenAccent : Colors.amber,
+                      color: _quizScore >= 7
+                          ? Colors.greenAccent
+                          : Colors.amber,
                       width: 4,
                     ),
                   ),
@@ -3554,16 +3680,25 @@ class _AIStudyMaterialWidgetState extends State<AIStudyMaterialWidget> {
                 const SizedBox(height: 32),
 
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+                    border: Border.all(
+                      color: Colors.greenAccent.withOpacity(0.3),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star_rounded, color: Colors.amber, size: 24),
+                      const Icon(
+                        Icons.star_rounded,
+                        color: Colors.amber,
+                        size: 24,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         "+15 XP  &  +5 Coins Earned",
@@ -3700,20 +3835,13 @@ class _CircularTimerDialState extends State<_CircularTimerDial> {
                   angle: _angle,
                   trackColor: cs.outlineVariant.withOpacity(0.2),
                   activeColor: Colors.tealAccent,
-                  activeGradientColors: [
-                    Colors.teal,
-                    Colors.greenAccent,
-                  ],
+                  activeGradientColors: [Colors.teal, Colors.greenAccent],
                 ),
               ),
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    treeIcon,
-                    size: 56,
-                    color: Colors.greenAccent,
-                  ),
+                  Icon(treeIcon, size: 56, color: Colors.greenAccent),
                   const SizedBox(height: 6),
                   Text(
                     "${minutes.toString().padLeft(2, '0')}:00",
